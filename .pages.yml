@@ -13,8 +13,10 @@ content:
     type: collection
     path: src/content/posts
     filename:
-      template: "{year}-{month}-{day}-{fields.slug}.md"
-      field: create
+      # 文件名 = 网址短名，最终网址就是 /posts/短名/
+      template: "{fields.slug}.md"
+      # true = 新建和编辑时都能看到并改文件名（填漏了还能补救）
+      field: true
     view:
       primary: title
       sort: published
