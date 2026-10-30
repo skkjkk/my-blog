@@ -34,3 +34,8 @@ yarn.lock
 .wrangler/
 .wrangler-dry/
 
+
+# 本地预览截图
+.live-*.png
+.preview-*.png
+
