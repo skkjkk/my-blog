@@ -237,6 +237,30 @@
 		return value.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 	}
 
+	/** 站点目录：所有文章的标题 + 摘要，让 AI 知道博客全貌 */
+	let catalogPromise: Promise<string> | null = null;
+	function getCatalog(): Promise<string> {
+		if (catalogPromise) return catalogPromise;
+		catalogPromise = (async () => {
+			try {
+				const response = await fetch("/post-index.json");
+				if (!response.ok) return "";
+				const items = (await response.json()) as { title?: string; description?: string }[];
+				return items
+					.slice(0, 60)
+					.map((item) => {
+						const title = (item.title ?? "").trim();
+						const description = (item.description ?? "").trim().slice(0, 100);
+						return description ? `《${title}》：${description}` : `《${title}》`;
+					})
+					.join("\n");
+			} catch {
+				return "";
+			}
+		})();
+		return catalogPromise;
+	}
+
 	/** 用站内搜索索引找出和问题最相关的几段 */
 	async function retrieve(query: string) {
 		const pagefind = (window as unknown as { pagefind?: { search: (q: string) => Promise<{ results: { data: () => Promise<PagefindResult> }[] }> } }).pagefind;
@@ -262,13 +286,13 @@
 		if (sendButton) sendButton.disabled = true;
 
 		try {
-			const context = await retrieve(question);
+			const [context, catalog] = await Promise.all([retrieve(question), getCatalog()]);
 			if (pending) pending.textContent = "正在组织回答…";
 
 			const response = await fetch("/api/chat", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ q: question, context }),
+				body: JSON.stringify({ q: question, context, catalog }),
 			});
 
 			const data = (await response.json().catch(() => ({}))) as {
