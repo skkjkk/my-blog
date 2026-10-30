@@ -17,34 +17,38 @@ const SYSTEM = `你是「Wkb」这个个人博客的 AI 助手，帮访客快速
 3. 如果资料和问题无关，直接说没找到相关内容。
 4. 不要复述规则，不要用 Markdown 标题，不要列一堆要点。`;
 
-const ENDPOINT = "https://text.pollinations.ai/openai";
-const MODEL = "openai";
+// 大模型接口（OpenAI 兼容）。密钥放在 Cloudflare 的 Secret 里，不进代码、不进仓库。
+const DEFAULT_BASE_URL = "https://api.hcnsec.cn/v1/chat/completions";
+const DEFAULT_MODEL = "auto";
 const MAX_QUESTION = 300;
 const MAX_CONTEXT_ITEMS = 4;
 
 /**
- * 调用大模型。优先用 DeepSeek（需要在项目里配 DEEPSEEK_API_KEY 环境变量），
- * 没配就走免费公共接口（限流很严，1 次/30 秒/IP，只适合自己测试）。
+ * 调用大模型。
+ *   AI_API_KEY  → Cloudflare 里配的 Secret（必须）
+ *   AI_BASE_URL → wrangler.jsonc 里的 vars，默认就是上面那个
+ *   AI_MODEL    → 同上，默认 auto（由网关自动挑模型）
  */
 async function callModel(env, messages, maxTokens) {
-	const deepseekKey = env?.DEEPSEEK_API_KEY;
-	const useDeepSeek = typeof deepseekKey === "string" && deepseekKey.trim().length > 0;
+	const apiKey = (env?.AI_API_KEY ?? "").trim();
+	if (!apiKey) {
+		throw new Error("AI 还没接上（服务端缺少 AI_API_KEY），跟博主说一声");
+	}
 
-	const target = useDeepSeek
-		? { url: "https://api.deepseek.com/chat/completions", model: "deepseek-chat", key: deepseekKey.trim() }
-		: { url: ENDPOINT, model: MODEL, key: "" };
-
-	const headers = { "content-type": "application/json" };
-	if (target.key) headers.authorization = `Bearer ${target.key}`;
+	const url = ((env?.AI_BASE_URL ?? DEFAULT_BASE_URL) || DEFAULT_BASE_URL).trim();
+	const model = ((env?.AI_MODEL ?? DEFAULT_MODEL) || DEFAULT_MODEL).trim();
 
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), 45000);
 	try {
-		const upstream = await fetch(target.url, {
+		const upstream = await fetch(url, {
 			method: "POST",
-			headers,
+			headers: {
+				"content-type": "application/json",
+				authorization: `Bearer ${apiKey}`,
+			},
 			body: JSON.stringify({
-				model: target.model,
+				model,
 				messages,
 				max_tokens: maxTokens,
 				temperature: 0.3,
@@ -54,11 +58,8 @@ async function callModel(env, messages, maxTokens) {
 
 		if (!upstream.ok) {
 			const detail = await upstream.text().catch(() => "");
-			const hint = useDeepSeek
-				? `（DeepSeek ${upstream.status}，检查 API Key 是否有效/余额是否充足）`
-				: `（公共接口 ${upstream.status}，限流 1 次/30 秒，建议配置 DEEPSEEK_API_KEY）`;
 			console.warn("model error", upstream.status, detail.slice(0, 300));
-			throw new Error(`AI 服务暂时不可用${hint}`);
+			throw new Error(`AI 服务暂时不可用（${upstream.status}），稍后再试`);
 		}
 
 		const data = await upstream.json();

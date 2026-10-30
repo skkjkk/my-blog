@@ -3,6 +3,10 @@
 	"name": "wkb",
 	"main": "worker/index.js",
 	"compatibility_date": "2026-10-30",
+	"vars": {
+		"AI_BASE_URL": "https://api.hcnsec.cn/v1/chat/completions",
+		"AI_MODEL": "auto"
+	},
 	"assets": {
 		"directory": "./dist",
 		"binding": "ASSETS",

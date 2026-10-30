@@ -14,14 +14,11 @@ import path from "node:path";
 const POSTS_DIR = path.join(process.cwd(), "src/content/posts");
 const FORCE = process.argv.includes("--force");
 
-// 有 DeepSeek 的 key 就用 DeepSeek（稳、中文好）；没有就走免费公共接口（限流 1 次/30 秒）
-const DEEPSEEK_KEY = (process.env.DEEPSEEK_API_KEY ?? "").trim();
-const USE_DEEPSEEK = DEEPSEEK_KEY.length > 0;
-const ENDPOINT = USE_DEEPSEEK
-	? "https://api.deepseek.com/chat/completions"
-	: (process.env.AI_ENDPOINT ?? "https://text.pollinations.ai/openai");
-const MODEL = USE_DEEPSEEK ? "deepseek-chat" : (process.env.AI_MODEL ?? "openai");
-const GAP_MS = USE_DEEPSEEK ? 1200 : 32000; // 免费接口每 30 秒只能一次
+// 大模型接口（OpenAI 兼容）。密钥只放 GitHub Secrets，不进代码。
+const AI_KEY = (process.env.AI_API_KEY ?? "").trim();
+const ENDPOINT = (process.env.AI_BASE_URL ?? "https://api.hcnsec.cn/v1/chat/completions").trim();
+const MODEL = (process.env.AI_MODEL ?? "auto").trim();
+const GAP_MS = 1200;
 
 const SYSTEM = `你是个人博客的编辑。给你文章标题和正文，请写一句中文摘要，用于文章列表和搜索引擎。
 要求：
@@ -35,7 +32,7 @@ const SYSTEM = `你是个人博客的编辑。给你文章标题和正文，请�
 async function summarize(title, body) {
   const content = `标题：${title}\n\n正文：\n${body.slice(0, 6000)}`;
   const headers = { "content-type": "application/json" };
-  if (USE_DEEPSEEK) headers.authorization = `Bearer ${DEEPSEEK_KEY}`;
+  if (AI_KEY) headers.authorization = `Bearer ${AI_KEY}`;
   const res = await fetch(ENDPOINT, {
     method: "POST",
     headers,
@@ -117,6 +114,11 @@ function withDescription(frontmatter, description) {
 }
 
 async function main() {
+  if (!AI_KEY) {
+    console.log("没有配 AI_API_KEY，跳过自动摘要（在仓库 Secrets 里加上即可启用）");
+    return;
+  }
+
   const files = (await readdir(POSTS_DIR)).filter((name) => name.endsWith(".md"));
   let changed = 0;
 

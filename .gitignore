@@ -43,3 +43,7 @@ yarn.lock
 .wrangler-dry/
 .test-*.png
 
+
+# 本地开发用的密钥（绝对不要提交）
+.dev.vars
+
