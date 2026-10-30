@@ -4,6 +4,7 @@ import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 
 import ConfigCarrier from "@components/ConfigCarrier.astro";
+import AIChatWidget from "@components/control/AIChatWidget.astro";
 import { profileConfig, siteConfig } from "@/config";
 import {
 	AUTO_MODE,
@@ -29,6 +30,9 @@ interface Props {
 }
 
 let { title, banner, description, lang, setOGTypeArticle } = Astro.props;
+
+// Cloudflare Web Analytics 的 token（构建时读取，留空则不输出统计脚本）
+const analyticsToken = process.env.CF_ANALYTICS_TOKEN ?? "";
 
 // apply a class to the body element to decide the height of the banner, only used for initial page load
 // Swup can update the body for each page visit, but it's after the page transition, causing a delay for banner height change
@@ -147,12 +151,26 @@ const bannerOffset =
 
 		<link rel="alternate" type="application/rss+xml" title={profileConfig.name} href={`${Astro.site}rss.xml`}/>
 
+		{/* 访问统计：Cloudflare Web Analytics（无 Cookie，不需要弹横幅）。
+		    在 Cloudflare 后台拿到 token 后，在项目环境变量里加 CF_ANALYTICS_TOKEN 即可，
+		    没配置就什么都不输出。 */}
+		{analyticsToken && (
+			<script
+				is:inline
+				defer
+				src="https://static.cloudflareinsights.com/beacon.min.js"
+				data-cf-beacon={JSON.stringify({ token: analyticsToken })}
+			/>
+		)}
+
 	</head>
 	<body class=" min-h-screen transition " class:list={[{"lg:is-home": isHomePage, "enable-banner": enableBanner}]}
 		  data-overlayscrollbars-initialize
 	>
 		<ConfigCarrier></ConfigCarrier>
 		<slot />
+
+		<AIChatWidget />
 
 		<!-- increase the page height during page transition to prevent the scrolling animation from jumping -->
 		<div id="page-height-extend" class="hidden h-[300vh]"></div>
@@ -563,5 +581,76 @@ if (window.swup) {
 	setup()
 } else {
 	document.addEventListener("swup:enable", setup)
+}
+</script>
+
+<script>
+// ---------------- Giscus 评论加载器 ----------------
+// 放在 Layout 里而不是评论组件里：首页没有评论区，但脚本必须一直在，
+// 否则从首页点进文章（swup 局部替换）时评论区不会初始化。
+const GISCUS_REPO = "skkjkk/my-blog";
+const GISCUS_REPO_ID = "R_kgDOVc-Qqg";
+const GISCUS_CATEGORY = "Announcements";
+const GISCUS_CATEGORY_ID = "DIC_kwDOVc-Qqs4DJ__9";
+
+function giscusTheme(): string {
+	return document.documentElement.classList.contains("dark") ? "dark" : "light";
+}
+
+function mountGiscus() {
+	const container = document.querySelector<HTMLElement>(".giscus");
+	if (!container || container.dataset.loaded === "true") return;
+	container.dataset.loaded = "true";
+
+	const script = document.createElement("script");
+	script.src = "https://giscus.app/client.js";
+	script.async = true;
+	script.crossOrigin = "anonymous";
+
+	const attrs: Record<string, string> = {
+		"data-repo": GISCUS_REPO,
+		"data-repo-id": GISCUS_REPO_ID,
+		"data-category": GISCUS_CATEGORY,
+		"data-category-id": GISCUS_CATEGORY_ID,
+		"data-mapping": "pathname",
+		"data-strict": "0",
+		"data-reactions-enabled": "1",
+		"data-emit-metadata": "0",
+		"data-input-position": "top",
+		"data-theme": giscusTheme(),
+		"data-lang": "zh-CN",
+		"data-loading": "lazy",
+	};
+	for (const [key, value] of Object.entries(attrs)) {
+		script.setAttribute(key, value);
+	}
+
+	container.appendChild(script);
+}
+
+function syncGiscusTheme() {
+	const frame = document.querySelector<HTMLIFrameElement>("iframe.giscus-frame");
+	if (!frame?.contentWindow) return;
+	frame.contentWindow.postMessage({ giscus: { setConfig: { theme: giscusTheme() } } }, "https://giscus.app");
+}
+
+// 用户切换深色/浅色时同步评论区配色
+new MutationObserver(syncGiscusTheme).observe(document.documentElement, {
+	attributes: true,
+	attributeFilter: ["class"],
+});
+
+function setupGiscus() {
+	mountGiscus();
+	window.swup.hooks.on("page:view", () => {
+		// 等 swup 把新页面内容塞进 DOM 后再挂载
+		window.setTimeout(mountGiscus, 0);
+	});
+}
+
+if (window.swup) {
+	setupGiscus();
+} else {
+	document.addEventListener("swup:enable", setupGiscus);
 }
 </script>

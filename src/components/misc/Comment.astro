@@ -1,0 +1,15 @@
+---
+// 评论区：用 Giscus（数据存在 GitHub Discussions，不需要服务器和数据库）
+// 真正的加载逻辑在 src/layouts/Layout.astro 的末尾（要兼容 swup 的页面切换）
+---
+
+<div class="card-base rounded-2xl px-6 py-6 mb-4 onload-animation">
+	<h2 class="text-lg font-bold mb-2 flex items-center gap-2">
+		<span class="inline-block w-1 h-5 rounded-md bg-[var(--primary)]"></span>
+		评论
+	</h2>
+	<p class="text-sm text-75 mb-5">
+		用 GitHub 账号登录后即可留言，评论会保存到这个仓库的 Discussions 里。
+	</p>
+	<div class="giscus"></div>
+</div>

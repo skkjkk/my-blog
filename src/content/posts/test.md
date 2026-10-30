@@ -1,5 +1,6 @@
 ---
 title: 测试
+description: "这是一篇测试文章"
 slug: test
 published: 2026-10-30
 tags:

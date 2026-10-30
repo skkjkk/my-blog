@@ -39,3 +39,7 @@ yarn.lock
 .live-*.png
 .preview-*.png
 
+
+.wrangler-dry/
+.test-*.png
+

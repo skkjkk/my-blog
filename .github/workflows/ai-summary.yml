@@ -1,0 +1,46 @@
+name: AI 自动摘要
+
+# 干嘛用的：你在后台发布/修改文章后，自动给没有摘要的文章生成一句话摘要，
+# 然后把这个小改动 commit 回仓库，Cloudflare 会自动重新部署。
+# 不需要任何 API Key。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/content/posts/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-summary
+  cancel-in-progress: true
+
+jobs:
+  summarize:
+    # 机器人自己提交的那次不再触发，避免死循环
+    if: ${{ !contains(github.event.head_commit.message, '[skip-summary]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 生成摘要
+        run: node scripts/ai-summary.mjs
+
+      - name: 提交修改
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "没有需要补摘要的文章"
+          else
+            git commit -m "AI 自动补齐文章摘要 [skip-summary]"
+            git push
+          fi
