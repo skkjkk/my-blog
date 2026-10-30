@@ -24,10 +24,10 @@ import { remarkExcerpt } from "./src/plugins/remark-excerpt.js";
 import { remarkReadingTime } from "./src/plugins/remark-reading-time.mjs";
 import { pluginCustomCopyButton } from "./src/plugins/expressive-code/custom-copy-button.js";
 
-// 网站正式地址：用于 RSS、sitemap 和社交分享卡片
-// 部署到 Cloudflare Pages 后，项目名 wkb 会得到 https://wkb.pages.dev
-// 以后绑了自己的域名，在 Cloudflare 里加环境变量 SITE_URL=https://你的域名/ 即可，不用改代码
-const siteUrl = process.env.SITE_URL ?? "https://wkb.pages.dev/";
+// 网站正式地址：用于 RSS、sitemap、canonical 和社交分享卡片
+// 现在是 Cloudflare 送的网址；以后绑了自己的域名，
+// 在 Cloudflare 项目里加环境变量 SITE_URL=https://你的域名/ 即可覆盖，不用改代码
+const siteUrl = process.env.SITE_URL ?? "https://wkb.wkb109033.workers.dev/";
 
 // https://astro.build/config
 export default defineConfig({
