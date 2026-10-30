@@ -1,0 +1,311 @@
+---
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+---
+
+<MainGridLayout title="后台">
+	<div id="admin-root" class="space-y-4">
+		<div id="admin-loading" class="card-base rounded-2xl px-6 py-10 text-center text-75">正在读取数据…</div>
+
+		<!-- 登录 -->
+		<section id="admin-login" class="card-base rounded-2xl px-6 py-10 max-w-md mx-auto hidden">
+			<h1 class="text-xl font-bold mb-1">后台登录</h1>
+			<p class="text-sm text-75 mb-6">只有你自己能看，数据不会对外公开。</p>
+			<form id="admin-login-form" class="space-y-3">
+				<input
+					id="admin-password"
+					type="password"
+					placeholder="后台密码"
+					autocomplete="current-password"
+					class="w-full px-3 py-2 rounded-lg bg-[var(--btn-plain-bg-hover)] text-sm"
+				/>
+				<button type="submit" class="w-full py-2 rounded-lg text-white text-sm font-medium" style="background: var(--primary)">
+					进入
+				</button>
+				<p id="admin-login-error" class="text-sm hidden" style="color: #e5484d"></p>
+			</form>
+		</section>
+
+		<!-- 数据面板 -->
+		<div id="admin-dashboard" class="hidden space-y-4">
+			<div class="card-base rounded-2xl px-6 py-5 flex flex-wrap items-center justify-between gap-3">
+				<div>
+					<h1 class="text-xl font-bold">博客后台</h1>
+					<p class="text-xs text-75 mt-1" id="admin-updated"></p>
+				</div>
+				<button id="admin-logout" class="text-sm px-3 py-1.5 rounded-lg bg-[var(--btn-plain-bg-hover)]">退出登录</button>
+			</div>
+
+			<div id="admin-kpis" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+
+			<div class="grid md:grid-cols-2 gap-3">
+				<section class="card-base rounded-2xl px-5 py-5">
+					<h2 class="font-bold mb-4 text-sm">最近 14 天阅读量</h2>
+					<div id="admin-trend" class="flex items-end gap-1 h-40"></div>
+				</section>
+
+				<section class="card-base rounded-2xl px-5 py-5">
+					<h2 class="font-bold mb-4 text-sm">热门页面 Top 10</h2>
+					<div id="admin-top-pages" class="space-y-2 text-sm"></div>
+				</section>
+			</div>
+
+			<div class="grid md:grid-cols-2 gap-3">
+				<section class="card-base rounded-2xl px-5 py-5">
+					<h2 class="font-bold mb-4 text-sm">AI 使用情况</h2>
+					<div id="admin-ai-stats" class="space-y-2 text-sm"></div>
+				</section>
+
+				<section class="card-base rounded-2xl px-5 py-5">
+					<h2 class="font-bold mb-4 text-sm">最近的提问</h2>
+					<div id="admin-ai-recent" class="space-y-2 text-sm max-h-72 overflow-y-auto pr-1"></div>
+				</section>
+			</div>
+		</div>
+	</div>
+</MainGridLayout>
+
+<script>
+	type Overview = {
+		generatedAt: string;
+		today: string;
+		views: {
+			total: number;
+			today: number;
+			series: { day: string; count: number }[];
+			top: { path: string; count: number }[];
+		};
+		ai: {
+			total: number;
+			today: number;
+			avgMs: number;
+			tokens: number;
+			recent: { ts: string; question: string; model: string; ms: number; ok: number }[];
+			models: { model: string; count: number }[];
+		};
+	};
+
+	type PostMeta = { title: string; tags?: string[]; category?: string };
+
+	const $ = (id: string) => document.getElementById(id);
+
+	function show(id: string) {
+		$(id)?.classList.remove("hidden");
+	}
+	function hide(id: string) {
+		$(id)?.classList.add("hidden");
+	}
+
+	function fmtTime(iso: string) {
+		const date = new Date(iso);
+		if (Number.isNaN(date.getTime())) return iso;
+		const pad = (n: number) => String(n).padStart(2, "0");
+		return `${date.getMonth() + 1}/${date.getDate()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+	}
+
+	function kpiCard(label: string, value: string, hint = "") {
+		const card = document.createElement("div");
+		card.className = "card-base rounded-2xl px-4 py-4";
+		card.innerHTML = `
+			<div class="text-xs text-75">${label}</div>
+			<div class="text-2xl font-bold mt-1" style="color: var(--primary)">${value}</div>
+			${hint ? `<div class="text-xs text-75 mt-1">${hint}</div>` : ""}
+		`;
+		return card;
+	}
+
+	function renderTrend(series: { day: string; count: number }[]) {
+		const box = $("admin-trend");
+		if (!box) return;
+		box.innerHTML = "";
+		// 补齐没有数据的日期，让柱子等宽
+		const map = new Map(series.map((row) => [row.day, row.count]));
+		const days: { day: string; count: number }[] = [];
+		for (let i = 13; i >= 0; i--) {
+			const date = new Date(Date.now() + 8 * 3600 * 1000 - i * 86400000);
+			const key = date.toISOString().slice(0, 10);
+			days.push({ day: key, count: map.get(key) ?? 0 });
+		}
+		const max = Math.max(1, ...days.map((d) => d.count));
+		for (const item of days) {
+			const col = document.createElement("div");
+			col.className = "flex-1 flex flex-col items-center justify-end gap-1 h-full";
+			const height = Math.max(2, Math.round((item.count / max) * 100));
+			col.innerHTML = `
+				<div class="text-[10px] text-75">${item.count || ""}</div>
+				<div class="w-full rounded-t" style="height:${height}%; background: var(--primary); opacity:${item.count ? 0.85 : 0.15}"></div>
+				<div class="text-[10px] text-75">${item.day.slice(8)}</div>
+			`;
+			box.appendChild(col);
+		}
+	}
+
+	function renderTopPages(top: { path: string; count: number }[]) {
+		const box = $("admin-top-pages");
+		if (!box) return;
+		box.innerHTML = "";
+		if (top.length === 0) {
+			box.innerHTML = `<p class="text-75 text-xs">还没有数据（有人访问后才会有）</p>`;
+			return;
+		}
+		const max = Math.max(...top.map((item) => item.count));
+		for (const item of top) {
+			const row = document.createElement("div");
+			row.className = "relative";
+			row.innerHTML = `
+				<div class="relative z-10 flex items-center justify-between gap-3 px-2 py-1.5">
+					<a href="${item.path}" class="truncate hover:underline" style="color: inherit">${item.path}</a>
+					<span class="tabular-nums text-75 shrink-0">${item.count}</span>
+				</div>
+				<div class="absolute inset-y-0 left-0 rounded" style="width:${Math.round((item.count / max) * 100)}%; background: var(--btn-plain-bg-hover)"></div>
+			`;
+			box.appendChild(row);
+		}
+	}
+
+	function renderAi(ai: Overview["ai"]) {
+		const stats = $("admin-ai-stats");
+		if (stats) {
+			const rows = [
+				["累计提问", `${ai.total} 次`],
+				["今日提问", `${ai.today} 次`],
+				["平均响应（近 7 天）", ai.avgMs ? `${(ai.avgMs / 1000).toFixed(1)} 秒` : "—"],
+				["累计 tokens", ai.tokens ? ai.tokens.toLocaleString() : "0"],
+			];
+			stats.innerHTML = rows
+				.map(
+					([label, value]) =>
+						`<div class="flex items-center justify-between px-2 py-1.5 rounded" style="background: var(--btn-plain-bg-hover)">
+							<span>${label}</span><span class="font-bold" style="color: var(--primary)">${value}</span>
+						</div>`,
+				)
+				.join("");
+			if (ai.models.length > 0) {
+				stats.innerHTML += `<div class="pt-2 text-xs text-75">实际调用的模型：${ai.models
+					.map((m) => `${m.model}（${m.count}）`)
+					.join("、")}</div>`;
+			}
+		}
+
+		const recent = $("admin-ai-recent");
+		if (!recent) return;
+		recent.innerHTML = "";
+		if (ai.recent.length === 0) {
+			recent.innerHTML = `<p class="text-75 text-xs">还没有人问过</p>`;
+			return;
+		}
+		for (const item of ai.recent) {
+			const row = document.createElement("div");
+			row.className = "px-2 py-1.5 rounded";
+			row.style.background = "var(--btn-plain-bg-hover)";
+			row.innerHTML = `
+				<div class="flex items-center justify-between gap-2 text-xs text-75 mb-0.5">
+					<span>${fmtTime(item.ts)}</span>
+					<span>${item.ms ? (item.ms / 1000).toFixed(1) + "s" : ""}${item.ok ? "" : " · 失败"}</span>
+				</div>
+				<div class="text-sm break-words">${item.question.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] ?? c)}</div>
+			`;
+			recent.appendChild(row);
+		}
+	}
+
+	async function renderPostStats() {
+		const kpis = $("admin-kpis");
+		if (!kpis) return null;
+		try {
+			const response = await fetch("/post-index.json");
+			const posts = (await response.json()) as PostMeta[];
+			const tags = new Set<string>();
+			const categories = new Set<string>();
+			for (const post of posts) {
+				for (const tag of post.tags ?? []) tags.add(tag);
+				if (post.category) categories.add(post.category);
+			}
+			return { posts: posts.length, tags: tags.size, categories: categories.size };
+		} catch {
+			return { posts: 0, tags: 0, categories: 0 };
+		}
+	}
+
+	async function load() {
+		hide("admin-login");
+		show("admin-loading");
+
+		let response: Response;
+		try {
+			response = await fetch("/api/admin/overview", { headers: { accept: "application/json" } });
+		} catch {
+			hide("admin-loading");
+			show("admin-login");
+			return;
+		}
+
+		if (response.status === 401) {
+			hide("admin-loading");
+			hide("admin-dashboard");
+			show("admin-login");
+			return;
+		}
+
+		const data = (await response.json().catch(() => null)) as Overview | null;
+		if (!data) {
+			hide("admin-loading");
+			show("admin-login");
+			return;
+		}
+
+		const postStats = await renderPostStats();
+		const kpis = $("admin-kpis");
+		if (kpis) {
+			kpis.innerHTML = "";
+			kpis.appendChild(kpiCard("文章", String(postStats?.posts ?? 0)));
+			kpis.appendChild(kpiCard("标签", String(postStats?.tags ?? 0)));
+			kpis.appendChild(kpiCard("分类", String(postStats?.categories ?? 0)));
+			kpis.appendChild(kpiCard("今日阅读", String(data.views.today)));
+			kpis.appendChild(kpiCard("累计阅读", String(data.views.total)));
+			kpis.appendChild(kpiCard("AI 提问", String(data.ai.total), `今日 ${data.ai.today} 次`));
+			kpis.appendChild(kpiCard("AI 平均响应", data.ai.avgMs ? `${(data.ai.avgMs / 1000).toFixed(1)}s` : "—"));
+			kpis.appendChild(kpiCard("AI tokens", data.ai.tokens.toLocaleString()));
+		}
+
+		renderTrend(data.views.series);
+		renderTopPages(data.views.top);
+		renderAi(data.ai);
+
+		const updated = $("admin-updated");
+		if (updated) updated.textContent = `数据更新于 ${new Date(data.generatedAt).toLocaleString("zh-CN")} · 统计时区 GMT+8`;
+
+		hide("admin-loading");
+		show("admin-dashboard");
+	}
+
+	$("admin-login-form")?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		const input = $("admin-password") as HTMLInputElement | null;
+		const error = $("admin-login-error");
+		error?.classList.add("hidden");
+		const password = input?.value ?? "";
+		const response = await fetch("/api/admin/login", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ password }),
+		});
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			if (error) {
+				error.textContent = (data as { error?: string }).error ?? "密码不对";
+				error.classList.remove("hidden");
+			}
+			return;
+		}
+		if (input) input.value = "";
+		await load();
+	});
+
+	$("admin-logout")?.addEventListener("click", async () => {
+		await fetch("/api/admin/logout", { method: "POST" });
+		hide("admin-dashboard");
+		show("admin-login");
+	});
+
+	void load();
+</script>

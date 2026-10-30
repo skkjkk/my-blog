@@ -654,3 +654,50 @@ if (window.swup) {
 	document.addEventListener("swup:enable", setupGiscus);
 }
 </script>
+
+<script>
+// ---------------- 访问统计上报 ----------------
+// 只上报路径，不发 IP、不发 Cookie 内容；后台页面不上报。
+let lastHitPath = "";
+let lastHitAt = 0;
+
+function reportHit() {
+	try {
+		const path = window.location.pathname;
+		if (path.startsWith("/admin")) return;
+		const now = Date.now();
+		// 首页刚打开时 swup 也会触发一次 page:view，去重
+		if (path === lastHitPath && now - lastHitAt < 5000) return;
+		lastHitPath = path;
+		lastHitAt = now;
+
+		const body = JSON.stringify({ path });
+		if (navigator.sendBeacon) {
+			navigator.sendBeacon("/api/hit", new Blob([body], { type: "application/json" }));
+		} else {
+			void fetch("/api/hit", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body,
+				keepalive: true,
+			});
+		}
+	} catch {
+		// 统计失败不影响页面
+	}
+}
+
+function setupHit() {
+	reportHit();
+	window.swup.hooks.on("page:view", () => {
+		window.setTimeout(reportHit, 0);
+	});
+}
+
+if (window.swup) {
+	setupHit();
+} else {
+	document.addEventListener("swup:enable", setupHit);
+	reportHit();
+}
+</script>

@@ -7,6 +7,13 @@
 		"AI_BASE_URL": "https://api.hcnsec.cn/v1/chat/completions",
 		"AI_MODEL": "auto"
 	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "wkb-db",
+			"database_id": "50b9853b-b96a-4525-8ac2-3480b4a09bd9"
+		}
+	],
 	"assets": {
 		"directory": "./dist",
 		"binding": "ASSETS",
