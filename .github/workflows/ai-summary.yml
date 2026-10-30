@@ -31,6 +31,10 @@ jobs:
           node-version: 20
 
       - name: 生成摘要
+        env:
+          # 在仓库 Settings → Secrets 里加 DEEPSEEK_API_KEY 就会用它；
+          # 没配则退回免费公共接口（限流很严，一次/30 秒，文章多会很慢）
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: node scripts/ai-summary.mjs
 
       - name: 提交修改

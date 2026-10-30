@@ -13,8 +13,15 @@ import path from "node:path";
 
 const POSTS_DIR = path.join(process.cwd(), "src/content/posts");
 const FORCE = process.argv.includes("--force");
-const ENDPOINT = process.env.AI_ENDPOINT ?? "https://text.pollinations.ai/openai";
-const MODEL = process.env.AI_MODEL ?? "openai";
+
+// 有 DeepSeek 的 key 就用 DeepSeek（稳、中文好）；没有就走免费公共接口（限流 1 次/30 秒）
+const DEEPSEEK_KEY = (process.env.DEEPSEEK_API_KEY ?? "").trim();
+const USE_DEEPSEEK = DEEPSEEK_KEY.length > 0;
+const ENDPOINT = USE_DEEPSEEK
+	? "https://api.deepseek.com/chat/completions"
+	: (process.env.AI_ENDPOINT ?? "https://text.pollinations.ai/openai");
+const MODEL = USE_DEEPSEEK ? "deepseek-chat" : (process.env.AI_MODEL ?? "openai");
+const GAP_MS = USE_DEEPSEEK ? 1200 : 32000; // 免费接口每 30 秒只能一次
 
 const SYSTEM = `你是个人博客的编辑。给你文章标题和正文，请写一句中文摘要，用于文章列表和搜索引擎。
 要求：
@@ -27,9 +34,11 @@ const SYSTEM = `你是个人博客的编辑。给你文章标题和正文，请�
 
 async function summarize(title, body) {
   const content = `标题：${title}\n\n正文：\n${body.slice(0, 6000)}`;
+  const headers = { "content-type": "application/json" };
+  if (USE_DEEPSEEK) headers.authorization = `Bearer ${DEEPSEEK_KEY}`;
   const res = await fetch(ENDPOINT, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers,
     body: JSON.stringify({
       model: MODEL,
       messages: [
@@ -182,7 +191,7 @@ async function main() {
     await writeFile(fullPath, updated, "utf8");
     console.log(`  ✓ ${summary}`);
     changed++;
-    await new Promise((r) => setTimeout(r, 1500)); // 别把免费接口打崩
+    await new Promise((r) => setTimeout(r, GAP_MS)); // 免费接口限流很严，间隔按需拉长
   }
 
   console.log(changed > 0 ? `完成，更新了 ${changed} 篇` : "完成，没有需要更新的文章");

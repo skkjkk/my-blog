@@ -22,6 +22,57 @@ const MODEL = "openai";
 const MAX_QUESTION = 300;
 const MAX_CONTEXT_ITEMS = 4;
 
+/**
+ * 调用大模型。优先用 DeepSeek（需要在项目里配 DEEPSEEK_API_KEY 环境变量），
+ * 没配就走免费公共接口（限流很严，1 次/30 秒/IP，只适合自己测试）。
+ */
+async function callModel(env, messages, maxTokens) {
+	const deepseekKey = env?.DEEPSEEK_API_KEY;
+	const useDeepSeek = typeof deepseekKey === "string" && deepseekKey.trim().length > 0;
+
+	const target = useDeepSeek
+		? { url: "https://api.deepseek.com/chat/completions", model: "deepseek-chat", key: deepseekKey.trim() }
+		: { url: ENDPOINT, model: MODEL, key: "" };
+
+	const headers = { "content-type": "application/json" };
+	if (target.key) headers.authorization = `Bearer ${target.key}`;
+
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), 45000);
+	try {
+		const upstream = await fetch(target.url, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({
+				model: target.model,
+				messages,
+				max_tokens: maxTokens,
+				temperature: 0.3,
+			}),
+			signal: controller.signal,
+		});
+
+		if (!upstream.ok) {
+			const detail = await upstream.text().catch(() => "");
+			const hint = useDeepSeek
+				? `（DeepSeek ${upstream.status}，检查 API Key 是否有效/余额是否充足）`
+				: `（公共接口 ${upstream.status}，限流 1 次/30 秒，建议配置 DEEPSEEK_API_KEY）`;
+			console.warn("model error", upstream.status, detail.slice(0, 300));
+			throw new Error(`AI 服务暂时不可用${hint}`);
+		}
+
+		const data = await upstream.json();
+		const answer = data?.choices?.[0]?.message?.content?.trim();
+		if (!answer) throw new Error("AI 没有返回内容，再问一次试试");
+		return answer;
+	} catch (error) {
+		if (error?.name === "AbortError") throw new Error("AI 响应超时，稍后再试");
+		throw error;
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
 function json(body, status = 200) {
 	return new Response(JSON.stringify(body), {
 		status,
@@ -32,7 +83,7 @@ function json(body, status = 200) {
 	});
 }
 
-async function handleChat(request) {
+async function handleChat(request, env) {
 	let payload;
 	try {
 		payload = await request.json();
@@ -63,28 +114,8 @@ async function handleChat(request) {
 		},
 	];
 
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), 45000);
 	try {
-		const upstream = await fetch(ENDPOINT, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({
-				model: MODEL,
-				messages,
-				max_tokens: 500,
-				temperature: 0.3,
-			}),
-			signal: controller.signal,
-		});
-
-		if (!upstream.ok) {
-			return json({ error: `AI 服务暂时不可用（${upstream.status}），稍后再试` }, 502);
-		}
-
-		const data = await upstream.json();
-		const answer = data?.choices?.[0]?.message?.content?.trim();
-		if (!answer) return json({ error: "AI 没有返回内容，再问一次试试" }, 502);
+		const answer = await callModel(env, messages, 500);
 
 		return json({
 			answer,
@@ -93,13 +124,9 @@ async function handleChat(request) {
 				.map((item) => ({ title: String(item?.title ?? ""), url: String(item?.url ?? "") })),
 		});
 	} catch (error) {
-		const message = error?.name === "AbortError" ? "AI 响应超时，稍后再试" : "请求 AI 失败";
-		return json({ error: message }, 504);
-	} finally {
-		clearTimeout(timer);
+		return json({ error: error?.message ?? "请求 AI 失败" }, 502);
 	}
 }
-
 export default {
 	async fetch(request, env) {
 		const url = new URL(request.url);
@@ -112,7 +139,7 @@ export default {
 				});
 			}
 			if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
-			return handleChat(request);
+			return handleChat(request, env);
 		}
 
 		// 其它请求交给静态资源（dist）
