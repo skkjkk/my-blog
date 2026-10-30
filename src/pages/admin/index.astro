@@ -97,6 +97,65 @@ import Layout from "@layouts/Layout.astro";
 
 			<div class="rule"></div>
 
+			<!-- 访问时段 -->
+			<section class="block">
+				<div class="block-head">
+					<h2>读者什么时候来</h2>
+					<p class="block-note" id="hours-note">按小时分布</p>
+				</div>
+				<div class="heat" id="hours"></div>
+				<div class="heat-axis">
+					<span>0</span><span>6</span><span>12</span><span>18</span><span>23</span>
+				</div>
+			</section>
+
+			<div class="rule"></div>
+
+			<div class="split">
+				<!-- 写作节奏 -->
+				<section class="block">
+					<div class="block-head">
+						<h2>写作节奏</h2>
+						<p class="block-note" id="rhythm-note"></p>
+					</div>
+					<div class="months" id="months"></div>
+					<dl class="content-facts" id="content-facts"></dl>
+				</section>
+
+				<!-- 标签 -->
+				<section class="block">
+					<div class="block-head">
+						<h2>标签分布</h2>
+						<p class="block-note" id="tags-note"></p>
+					</div>
+					<div class="tagbars" id="tags"></div>
+				</section>
+			</div>
+
+			<div class="rule"></div>
+
+			<div class="split">
+				<!-- 站内搜索 -->
+				<section class="block">
+					<div class="block-head">
+						<h2>读者在搜什么</h2>
+						<p class="block-note" id="search-note"></p>
+					</div>
+					<ol class="ranking compact" id="searches"></ol>
+				</section>
+
+				<!-- 被问最多的文章 -->
+				<section class="block">
+					<div class="block-head">
+						<h2>最让人困惑的文章</h2>
+						<p class="block-note">AI 检索命中最多的文章</p>
+					</div>
+					<ol class="ranking compact" id="ai-paths"></ol>
+				</section>
+			</div>
+
+			<div class="rule"></div>
+
 			<!-- 提问记录 -->
 			<section class="block">
 				<div class="block-head">
@@ -675,6 +734,134 @@ import Layout from "@layouts/Layout.astro";
 		color: var(--ink-faint);
 	}
 
+	/* ---------- 访问时段热力 ---------- */
+	.heat {
+		display: grid;
+		grid-template-columns: repeat(24, minmax(0, 1fr));
+		gap: 2px;
+		height: 4.5rem;
+		align-items: end;
+	}
+	.heat i {
+		display: block;
+		background: var(--accent);
+		border-radius: 1px 1px 0 0;
+		min-height: 2px;
+		transition: height 0.7s cubic-bezier(0.3, 0.8, 0.3, 1), opacity 0.3s ease;
+	}
+	.heat i:hover {
+		opacity: 0.65;
+	}
+	.heat-axis {
+		display: flex;
+		justify-content: space-between;
+		margin-top: 0.5rem;
+		font-family: var(--mono);
+		font-size: 0.6rem;
+		color: var(--ink-faint);
+	}
+
+	/* ---------- 写作节奏 ---------- */
+	.months {
+		display: flex;
+		align-items: flex-end;
+		gap: 0.35rem;
+		height: 5.5rem;
+		margin-bottom: 1rem;
+	}
+	.month {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.35rem;
+		height: 100%;
+	}
+	.month b {
+		font-family: var(--mono);
+		font-size: 0.62rem;
+		font-weight: 500;
+		color: var(--ink-soft);
+	}
+	.month i {
+		display: block;
+		width: 100%;
+		background: var(--leaf);
+		opacity: 0.9;
+		min-height: 2px;
+		transition: height 0.7s cubic-bezier(0.3, 0.8, 0.3, 1);
+	}
+	.month span {
+		font-family: var(--mono);
+		font-size: 0.58rem;
+		color: var(--ink-faint);
+		letter-spacing: 0.04em;
+	}
+	.content-facts {
+		margin: 0;
+		display: grid;
+		gap: 0.45rem;
+	}
+	.content-facts div {
+		display: flex;
+		justify-content: space-between;
+		border-bottom: 1px dashed var(--hair);
+		padding-bottom: 0.4rem;
+	}
+	.content-facts dt {
+		font-size: 0.74rem;
+		color: var(--ink-soft);
+	}
+	.content-facts dd {
+		margin: 0;
+		font-family: var(--mono);
+		font-size: 0.8rem;
+	}
+
+	/* ---------- 标签条 ---------- */
+	.tagbars {
+		display: grid;
+		gap: 0.55rem;
+	}
+	.tagbar {
+		display: grid;
+		grid-template-columns: 5.5rem 1fr 2rem;
+		align-items: center;
+		gap: 0.6rem;
+		font-size: 0.78rem;
+	}
+	.tagbar span:first-child {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		color: var(--ink-soft);
+	}
+	.tagbar em {
+		display: block;
+		height: 3px;
+		background: var(--hair);
+		font-style: normal;
+	}
+	.tagbar em i {
+		display: block;
+		height: 100%;
+		background: var(--leaf);
+		width: 0;
+		transition: width 0.8s cubic-bezier(0.3, 0.8, 0.3, 1);
+	}
+	.tagbar b {
+		font-family: var(--mono);
+		font-size: 0.72rem;
+		font-weight: 500;
+		text-align: right;
+		color: var(--ink-faint);
+	}
+
+	.ranking.compact li {
+		padding: 0.55rem 0;
+	}
+
 	.foot {
 		max-width: 78rem;
 		margin: 0 auto;
@@ -754,6 +941,8 @@ import Layout from "@layouts/Layout.astro";
 			yesterday: number;
 			series: { day: string; count: number }[];
 			top: { path: string; count: number }[];
+			hours: { hour: number; count: number }[];
+			search: { total: number; top: { keyword: string; count: number }[] };
 		};
 		ai: {
 			total: number;
@@ -762,13 +951,16 @@ import Layout from "@layouts/Layout.astro";
 			avgMs: number;
 			tokens: number;
 			successRate: number;
+			zeroHits: number;
+			avgHits: number;
+			topPaths: { path: string; count: number }[];
 			series: { day: string; count: number }[];
 			recent: { ts: string; question: string; model: string; ms: number; ok: number }[];
 			models: { model: string; count: number }[];
 		};
 	};
 
-	type PostMeta = { title: string; url: string; tags?: string[]; category?: string };
+	type PostMeta = { title: string; url: string; tags?: string[]; category?: string; published?: string; words?: number };
 
 	const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T | null;
 
@@ -949,6 +1141,8 @@ import Layout from "@layouts/Layout.astro";
 				["累计提问", `${fmtNum(data.ai.total)} 次`],
 				["今日提问", `${fmtNum(data.ai.today)} 次`],
 				["平均响应", data.ai.avgMs ? `${(data.ai.avgMs / 1000).toFixed(1)} 秒` : "—"],
+				["平均命中段落", `${data.ai.avgHits} 段`],
+				["没检索到内容", `${data.ai.zeroHits} 次`],
 				["累计 tokens", fmtNum(data.ai.tokens)],
 			];
 			facts.innerHTML = rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
@@ -963,8 +1157,183 @@ import Layout from "@layouts/Layout.astro";
 		}
 	}
 
-	function renderLog(data: Overview) {
-		const box = $("#log");
+	function renderHours(data: Overview) {
+		const box = $("#hours");
+		if (!box) return;
+		const map = new Map(data.views.hours.map((row) => [row.hour, row.count]));
+		const max = Math.max(1, ...data.views.hours.map((row) => row.count));
+		box.innerHTML = Array.from({ length: 24 }, (_, hour) => {
+			const count = map.get(hour) ?? 0;
+			const height = count === 0 ? 2 : Math.max(6, Math.round((count / max) * 100));
+			return `<i data-h="${height}" title="${hour}:00 · ${count} 次" style="height:2px;opacity:${count ? 0.9 : 0.18}"></i>`;
+		}).join("");
+		requestAnimationFrame(() => {
+			for (const bar of box.querySelectorAll<HTMLElement>("i[data-h]")) {
+				bar.style.height = `${bar.dataset.h}%`;
+			}
+		});
+		const note = $("#hours-note");
+		if (note) {
+			const peak = data.views.hours.reduce((best, row) => (row.count > (best?.count ?? 0) ? row : best), null as null | { hour: number; count: number });
+			note.textContent = peak ? `高峰 ${peak.hour}:00 前后 · 共 ${fmtNum(peak.count)} 次` : "按小时分布";
+		}
+	}
+
+	function renderContent() {
+		const monthsBox = $("#months");
+		const facts = $("#content-facts");
+		const rhythmNote = $("#rhythm-note");
+		if (!monthsBox) return;
+
+		// 按月聚合发文数（最近 8 个月，含空月）
+		const counter = new Map<string, number>();
+		let totalWords = 0;
+		let newest = "";
+		for (const post of postsCache) {
+			const month = (post.published ?? "").slice(0, 7);
+			if (month) counter.set(month, (counter.get(month) ?? 0) + 1);
+			totalWords += post.words ?? 0;
+			if ((post.published ?? "") > newest) newest = post.published ?? "";
+		}
+
+		const months: { key: string; label: string; count: number }[] = [];
+		for (let i = 7; i >= 0; i--) {
+			const date = new Date();
+			date.setDate(1);
+			date.setMonth(date.getMonth() - i);
+			const key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
+			months.push({ key, label: `${date.getMonth() + 1}月`, count: counter.get(key) ?? 0 });
+		}
+		const max = Math.max(1, ...months.map((m) => m.count));
+		monthsBox.innerHTML = months
+			.map(
+				(m) => `<div class="month">
+					<b>${m.count || ""}</b>
+					<i data-h="${Math.max(3, Math.round((m.count / max) * 100))}" style="height:3px"></i>
+					<span>${m.label}</span>
+				</div>`,
+			)
+			.join("");
+		requestAnimationFrame(() => {
+			for (const bar of monthsBox.querySelectorAll<HTMLElement>("i[data-h]")) bar.style.height = `${bar.dataset.h}%`;
+		});
+
+		const avgWords = postsCache.length ? Math.round(totalWords / postsCache.length) : 0;
+		const daysSince = newest ? Math.floor((Date.now() - new Date(newest).getTime()) / 86400000) : null;
+		if (facts) {
+			const rows: [string, string][] = [
+				["总字数", `${fmtNum(totalWords)} 字`],
+				["平均每篇", `${fmtNum(avgWords)} 字`],
+				["最近发布", newest || "—"],
+				["停更了", daysSince === null ? "—" : daysSince <= 0 ? "今天刚发" : `${daysSince} 天`],
+			];
+			facts.innerHTML = rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
+		}
+		if (rhythmNote) {
+			const thisMonth = months[months.length - 1]?.count ?? 0;
+			const lastMonth = months[months.length - 2]?.count ?? 0;
+			rhythmNote.textContent = `本月 ${thisMonth} 篇 · 上月 ${lastMonth} 篇`;
+		}
+	}
+
+	function renderTags() {
+		const box = $("#tags");
+		const note = $("#tags-note");
+		if (!box) return;
+
+		const counter = new Map<string, number>();
+		for (const post of postsCache) {
+			for (const tag of post.tags ?? []) counter.set(tag, (counter.get(tag) ?? 0) + 1);
+		}
+		const entries = Array.from(counter.entries()).sort((a, b) => b[1] - a[1]);
+		const used = entries.length;
+		const orphans = entries.filter(([, count]) => count === 1).length;
+		const max = Math.max(1, ...entries.map(([, count]) => count));
+
+		if (entries.length === 0) {
+			box.innerHTML = `<p class="empty">还没有标签</p>`;
+		} else {
+			box.innerHTML = entries
+				.slice(0, 10)
+				.map(
+					([tag, count]) => `<div class="tagbar">
+						<span>${tag}</span>
+						<em><i data-w="${Math.round((count / max) * 100)}"></i></em>
+						<b>${count}</b>
+					</div>`,
+				)
+				.join("");
+			requestAnimationFrame(() => {
+				for (const bar of box.querySelectorAll<HTMLElement>("i[data-w]")) bar.style.width = `${bar.dataset.w}%`;
+			});
+		}
+
+		if (note) {
+			const avgPerPost = postsCache.length
+				? (entries.reduce((sum, [, count]) => sum + count, 0) / postsCache.length).toFixed(1)
+				: "0";
+			note.textContent = `${used} 个标签 · 每篇平均 ${avgPerPost} 个${orphans > 0 ? ` · ${orphans} 个只用过 1 次` : ""}`;
+		}
+	}
+
+	function renderSearches(data: Overview) {
+		const box = $("#searches");
+		const note = $("#search-note");
+		if (note) note.textContent = data.views.search.total > 0 ? `${data.range} 天内 ${fmtNum(data.views.search.total)} 次搜索` : "还没有人搜索过";
+		if (!box) return;
+		if (data.views.search.top.length === 0) {
+			box.innerHTML = `<li class="empty" style="display:block;border:0">还没有搜索记录</li>`;
+			return;
+		}
+		const max = Math.max(...data.views.search.top.map((row) => row.count));
+		box.innerHTML = data.views.search.top
+			.map(
+				(row, index) => `<li style="animation-delay:${index * 40}ms">
+					<span class="rank-no">${pad(index + 1)}</span>
+					<span class="rank-body">
+						<span class="rank-title">${row.keyword.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] ?? c)}</span>
+						<span class="rank-track"><i data-width="${Math.round((row.count / max) * 100)}"></i></span>
+					</span>
+					<span class="rank-count">${row.count}</span>
+				</li>`,
+			)
+			.join("");
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				for (const bar of box.querySelectorAll<HTMLElement>(".rank-track i")) bar.style.width = `${bar.dataset.width}%`;
+			});
+		});
+	}
+
+	function renderAiPaths(data: Overview) {
+		const box = $("#ai-paths");
+		if (!box) return;
+		if (data.ai.topPaths.length === 0) {
+			box.innerHTML = `<li class="empty" style="display:block;border:0">还没有提问记录</li>`;
+			return;
+		}
+		const max = Math.max(...data.ai.topPaths.map((row) => row.count));
+		box.innerHTML = data.ai.topPaths
+			.map((row, index) => {
+				const title = titles.get(row.path) ?? row.path;
+				return `<li style="animation-delay:${index * 40}ms">
+					<span class="rank-no">${pad(index + 1)}</span>
+					<span class="rank-body">
+						<a class="rank-title" href="${row.path}">${title}</a>
+						<span class="rank-track"><i data-width="${Math.round((row.count / max) * 100)}"></i></span>
+					</span>
+					<span class="rank-count">${row.count}</span>
+				</li>`;
+			})
+			.join("");
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				for (const bar of box.querySelectorAll<HTMLElement>(".rank-track i")) bar.style.width = `${bar.dataset.width}%`;
+			});
+		});
+	}
+
+	function renderLog(data: Overview) {		const box = $("#log");
 		if (!box) return;
 		if (data.ai.recent.length === 0) {
 			box.innerHTML = `<li class="empty" style="display:block;border:0">还没有人问过</li>`;
@@ -1024,6 +1393,11 @@ import Layout from "@layouts/Layout.astro";
 		renderLedger(data);
 		renderTrend(data);
 		renderRanking(data);
+		renderHours(data);
+		renderContent();
+		renderTags();
+		renderSearches(data);
+		renderAiPaths(data);
 		renderAi(data);
 		renderLog(data);
 

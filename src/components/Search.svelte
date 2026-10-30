@@ -13,6 +13,35 @@ let isSearching = false;
 let pagefindLoaded = false;
 let initialized = false;
 
+// 记录读者搜过什么（等用户停下来再上报，避免每敲一个字就写一条）
+let searchLogTimer: ReturnType<typeof setTimeout> | null = null;
+let lastLoggedKeyword = "";
+
+function logSearchKeyword(keyword: string, count: number) {
+	if (!import.meta.env.PROD) return;
+	const value = keyword.trim();
+	if (value.length < 2 || value === lastLoggedKeyword) return;
+	if (searchLogTimer) clearTimeout(searchLogTimer);
+	searchLogTimer = setTimeout(() => {
+		lastLoggedKeyword = value;
+		try {
+			const body = JSON.stringify({ keyword: value, results: count });
+			if (navigator.sendBeacon) {
+				navigator.sendBeacon("/api/search-log", new Blob([body], { type: "application/json" }));
+			} else {
+				void fetch("/api/search-log", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body,
+					keepalive: true,
+				});
+			}
+		} catch {
+			// 统计失败不影响搜索
+		}
+	}, 1400);
+}
+
 const fakeResult: SearchResult[] = [
 	{
 		url: url("/"),
@@ -76,6 +105,7 @@ const search = async (keyword: string, isDesktop: boolean): Promise<void> => {
 		}
 
 		result = searchResults;
+		logSearchKeyword(keyword, searchResults.length);
 		setPanelVisibility(result.length > 0, isDesktop);
 	} catch (error) {
 		console.error("Search error:", error);

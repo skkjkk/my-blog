@@ -65,6 +65,31 @@ async function callModel(env, messages, maxTokens) {
 	}
 }
 
+// ---------------- 数据结构自愈 ----------------
+// 所有建表语句都是 IF NOT EXISTS，可重复执行。每个 Worker 实例第一次用到数据库时跑一遍，
+// 这样即使忘了手动执行 schema.sql，统计表也会自动出现。
+let schemaReady = null;
+function ensureSchema(env) {
+	if (!env?.DB) return Promise.resolve();
+	if (!schemaReady) {
+		schemaReady = env.DB.batch([
+			env.DB.prepare(
+				"CREATE TABLE IF NOT EXISTS views_hourly (day TEXT NOT NULL, hour INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, hour))",
+			),
+			env.DB.prepare(
+				"CREATE TABLE IF NOT EXISTS ai_hits (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, hits INTEGER NOT NULL DEFAULT 0, paths TEXT DEFAULT '')",
+			),
+			env.DB.prepare(
+				"CREATE TABLE IF NOT EXISTS search_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, keyword TEXT NOT NULL, results INTEGER DEFAULT 0)",
+			),
+		]).catch((error) => {
+			schemaReady = null; // 失败就别缓存，下次重试
+			console.warn("自动建表失败", error);
+		});
+	}
+	return schemaReady;
+}
+
 // ---------------- 工具 ----------------
 
 function json(body, status = 200, extraHeaders = {}) {
@@ -178,10 +203,29 @@ async function handleChat(request, env, ctx) {
 
 	// 记一笔 AI 使用情况（不阻塞回答）
 	if (env?.DB) {
-		const statement = env.DB.prepare(
-			"INSERT INTO ai_log (ts, day, question, model, ms, tokens, ok) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		).bind(new Date().toISOString(), today(), question, model || DEFAULT_MODEL, Date.now() - startedAt, tokens ?? 0, ok);
-		ctx?.waitUntil?.(statement.run().catch((error) => console.warn("ai_log 写入失败", error)));
+		const contextPaths = (Array.isArray(payload?.context) ? payload.context : [])
+			.slice(0, 3)
+			.map((item) => String(item?.url ?? ""))
+			.filter(Boolean)
+			.join(",");
+		const hitCount = Array.isArray(payload?.context) ? payload.context.length : 0;
+		const now = new Date().toISOString();
+		ctx?.waitUntil?.(
+			(async () => {
+				await ensureSchema(env);
+				await env.DB.batch([
+					env.DB.prepare(
+						"INSERT INTO ai_log (ts, day, question, model, ms, tokens, ok) VALUES (?, ?, ?, ?, ?, ?, ?)",
+					).bind(now, today(), question, model || DEFAULT_MODEL, Date.now() - startedAt, tokens ?? 0, ok),
+					env.DB.prepare("INSERT INTO ai_hits (ts, day, hits, paths) VALUES (?, ?, ?, ?)").bind(
+						now,
+						today(),
+						hitCount,
+						contextPaths,
+					),
+				]);
+			})().catch((error) => console.warn("AI 记录写入失败", error)),
+		);
 	}
 
 	if (!ok) return json({ error: errorMessage }, 502);
@@ -207,10 +251,50 @@ async function handleHit(request, env, ctx) {
 	if (!path.startsWith("/") || path.length > 300) return json({ ok: true });
 	if (path.startsWith("/admin") || path.startsWith("/api/") || path === "/post-index.json") return json({ ok: true });
 
-	const statement = env.DB.prepare(
-		"INSERT INTO views (day, path, count) VALUES (?, ?, 1) ON CONFLICT(day, path) DO UPDATE SET count = count + 1",
-	).bind(today(), path);
-	ctx?.waitUntil?.(statement.run().catch((error) => console.warn("views 写入失败", error)));
+	const hour = Number(new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(11, 13));
+	const day = today();
+
+	ctx?.waitUntil?.(
+		(async () => {
+			await ensureSchema(env);
+			await env.DB.batch([
+				env.DB.prepare(
+					"INSERT INTO views (day, path, count) VALUES (?, ?, 1) ON CONFLICT(day, path) DO UPDATE SET count = count + 1",
+				).bind(day, path),
+				env.DB.prepare(
+					"INSERT INTO views_hourly (day, hour, count) VALUES (?, ?, 1) ON CONFLICT(day, hour) DO UPDATE SET count = count + 1",
+				).bind(day, hour),
+			]);
+		})().catch((error) => console.warn("访问统计写入失败", error)),
+	);
+
+	return json({ ok: true });
+}
+
+/** 记录站内搜索词：读者在找什么，往往就是你还缺什么文章 */
+async function handleSearchLog(request, env, ctx) {
+	if (!env?.DB) return json({ ok: true });
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ ok: true });
+	}
+
+	const keyword = String(body?.keyword ?? "")
+		.trim()
+		.slice(0, 60);
+	if (!keyword) return json({ ok: true });
+	const results = Number(body?.results ?? 0) || 0;
+
+	ctx?.waitUntil?.(
+		(async () => {
+			await ensureSchema(env);
+			await env.DB.prepare("INSERT INTO search_log (ts, day, keyword, results) VALUES (?, ?, ?, ?)")
+				.bind(new Date().toISOString(), today(), keyword, results)
+				.run();
+		})().catch(() => {}),
+	);
 
 	return json({ ok: true });
 }
@@ -239,6 +323,7 @@ async function handleLogin(request, env) {
 async function handleOverview(request, env) {
 	if (!(await isAdmin(request, env))) return json({ error: "未登录" }, 401);
 	if (!env?.DB) return json({ error: "数据库还没绑定" }, 500);
+	await ensureSchema(env);
 
 	const requestUrl = new URL(request.url);
 	const rangeParam = Number(requestUrl.searchParams.get("range") ?? 14);
@@ -276,7 +361,7 @@ async function handleOverview(request, env) {
 		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log WHERE day = ?").bind(yesterdayStr),
 		env.DB.prepare("SELECT AVG(ms) AS v FROM ai_log WHERE ok = 1 AND day >= ?").bind(fromStr),
 		env.DB.prepare("SELECT COALESCE(SUM(tokens), 0) AS v FROM ai_log"),
-		env.DB.prepare("SELECT ts, question, model, ms, ok FROM ai_log ORDER BY id DESC LIMIT 15"),
+		env.DB.prepare("SELECT ts, question, model, ms, ok FROM ai_log ORDER BY id DESC LIMIT 30"),
 		env.DB.prepare("SELECT model, COUNT(*) AS v FROM ai_log GROUP BY model ORDER BY v DESC LIMIT 5"),
 		env.DB.prepare("SELECT day, COUNT(*) AS v FROM ai_log WHERE day >= ? GROUP BY day ORDER BY day").bind(fromStr),
 		env.DB.prepare("SELECT COALESCE(SUM(ok), 0) AS v FROM ai_log"),
@@ -284,6 +369,49 @@ async function handleOverview(request, env) {
 
 	const totalAi = aiTotal?.results?.[0]?.v ?? 0;
 	const okAi = aiOkTotal?.results?.[0]?.v ?? 0;
+
+	// 以下统计依赖后加的表，缺了也不该让整个后台挂掉
+	let hours = [];
+	let searchTop = [];
+	let searchTotal = 0;
+	let aiZeroHits = 0;
+	let aiAvgHits = 0;
+	let aiTopPaths = [];
+	try {
+		const [hourRows, searchRows, searchTotalRow, hitsRow, hitPathRows] = await env.DB.batch([
+			env.DB.prepare("SELECT hour, SUM(count) AS v FROM views_hourly WHERE day >= ? GROUP BY hour ORDER BY hour").bind(fromStr),
+			env.DB.prepare(
+				"SELECT keyword, COUNT(*) AS v FROM search_log WHERE day >= ? GROUP BY keyword ORDER BY v DESC LIMIT 10",
+			).bind(fromStr),
+			env.DB.prepare("SELECT COUNT(*) AS v FROM search_log WHERE day >= ?").bind(fromStr),
+			env.DB.prepare(
+				"SELECT COUNT(*) AS n, COALESCE(SUM(hits), 0) AS sum, COALESCE(SUM(CASE WHEN hits = 0 THEN 1 ELSE 0 END), 0) AS zero FROM ai_hits WHERE day >= ?",
+			).bind(fromStr),
+			env.DB.prepare("SELECT paths FROM ai_hits WHERE day >= ? ORDER BY id DESC LIMIT 500").bind(fromStr),
+		]);
+
+		hours = (hourRows?.results ?? []).map((row) => ({ hour: row.hour, count: row.v }));
+		searchTop = (searchRows?.results ?? []).map((row) => ({ keyword: row.keyword, count: row.v }));
+		searchTotal = searchTotalRow?.results?.[0]?.v ?? 0;
+
+		const hits = hitsRow?.results?.[0] ?? { n: 0, sum: 0, zero: 0 };
+		aiZeroHits = hits.zero ?? 0;
+		aiAvgHits = hits.n > 0 ? Number((hits.sum / hits.n).toFixed(1)) : 0;
+
+		const counter = new Map();
+		for (const row of hitPathRows?.results ?? []) {
+			for (const path of String(row.paths ?? "").split(",")) {
+				if (!path) continue;
+				counter.set(path, (counter.get(path) ?? 0) + 1);
+			}
+		}
+		aiTopPaths = Array.from(counter.entries())
+			.sort((a, b) => b[1] - a[1])
+			.slice(0, 5)
+			.map(([path, count]) => ({ path, count }));
+	} catch (error) {
+		console.warn("扩展统计不可用（表可能还没建好）", error);
+	}
 
 	return json({
 		generatedAt: new Date().toISOString(),
@@ -295,6 +423,8 @@ async function handleOverview(request, env) {
 			yesterday: yesterdayViews?.results?.[0]?.v ?? 0,
 			series: (series?.results ?? []).map((row) => ({ day: row.day, count: row.v })),
 			top: (topPages?.results ?? []).map((row) => ({ path: row.path, count: row.v })),
+			hours,
+			search: { total: searchTotal, top: searchTop },
 		},
 		ai: {
 			total: totalAi,
@@ -303,8 +433,11 @@ async function handleOverview(request, env) {
 			avgMs: Math.round(aiAvg?.results?.[0]?.v ?? 0),
 			tokens: aiTokens?.results?.[0]?.v ?? 0,
 			successRate: totalAi > 0 ? Math.round((okAi / totalAi) * 100) : 100,
+			zeroHits: aiZeroHits,
+			avgHits: aiAvgHits,
+			topPaths: aiTopPaths,
 			series: (aiSeries?.results ?? []).map((row) => ({ day: row.day, count: row.v })),
-			recent: (aiRecent?.results ?? []).map((row) => ({
+			recent: (aiRecent?.results ?? []).slice(0, 15).map((row) => ({
 				ts: row.ts,
 				question: row.question,
 				model: row.model,
@@ -339,6 +472,11 @@ export default {
 			if (path === "/api/hit") {
 				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
 				return handleHit(request, env, ctx);
+			}
+
+			if (path === "/api/search-log") {
+				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				return handleSearchLog(request, env, ctx);
 			}
 
 			if (path === "/api/admin/login") {
