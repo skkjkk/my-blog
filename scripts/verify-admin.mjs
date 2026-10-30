@@ -1,8 +1,11 @@
-// 用 CDP 验证后台页面：登录 → 截图
+// CDP 截图：登录后台并按指定视口截图（桌面/手机）
 const PORT = 9222;
 const URL_ = process.argv[2] ?? "http://127.0.0.1:8787/admin/";
 const PASSWORD = process.argv[3] ?? "";
-const OUT = process.argv[4] ?? "D:/06-Agentworkspace/my-blog/.test-admin.png";
+const WIDTH = Number(process.argv[4] ?? 1440);
+const HEIGHT = Number(process.argv[5] ?? 1000);
+const OUT = process.argv[6] ?? "D:/06-Agentworkspace/my-blog/.shot.png";
+const DARK = (process.argv[7] ?? "light") === "dark";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function pageTarget() {
@@ -48,64 +51,63 @@ const c = client(await pageTarget());
 await c.ready;
 await c.send("Page.enable");
 await c.send("Runtime.enable");
-await c.send("Page.navigate", { url: URL_ });
-await sleep(3500);
-
-const state = await c.send("Runtime.evaluate", {
-  expression: `(() => {
-    const login = document.getElementById('admin-login');
-    const dash = document.getElementById('admin-dashboard');
-    return JSON.stringify({
-      loginVisible: login ? !login.classList.contains('hidden') : null,
-      dashVisible: dash ? !dash.classList.contains('hidden') : null,
-    });
-  })()`,
-  returnByValue: true,
+await c.send("Emulation.setDeviceMetricsOverride", {
+  width: WIDTH,
+  height: HEIGHT,
+  deviceScaleFactor: 1,
+  mobile: WIDTH < 600,
 });
-console.log("初始状态:", state.result.value);
+await c.send("Page.navigate", { url: URL_ });
+await sleep(2500);
+
+if (DARK) {
+  await c.send("Runtime.evaluate", {
+    expression: `document.documentElement.classList.add('dark')`,
+  });
+  await sleep(600);
+}
 
 if (PASSWORD) {
   await c.send("Runtime.evaluate", {
     expression: `(() => {
-      const input = document.getElementById('admin-password');
-      const form = document.getElementById('admin-login-form');
-      if (!input || !form) return 'no-form';
-      input.value = ${JSON.stringify(PASSWORD)};
-      form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-      return 'submitted';
+      const gate = document.getElementById('gate');
+      if (gate && !gate.hidden) {
+        const input = document.getElementById('password');
+        const form = document.getElementById('login-form');
+        input.value = ${JSON.stringify(PASSWORD)};
+        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        return 'login-submitted';
+      }
+      return 'already-in';
     })()`,
     returnByValue: true,
   });
-  console.log("已提交密码");
-
-  for (let i = 0; i < 15; i++) {
-    await sleep(1500);
-    const check = await c.send("Runtime.evaluate", {
-      expression: `document.getElementById('admin-dashboard') && !document.getElementById('admin-dashboard').classList.contains('hidden') ? 'ready' : 'waiting'`,
+  for (let i = 0; i < 20; i++) {
+    await sleep(1200);
+    const state = await c.send("Runtime.evaluate", {
+      expression: `document.getElementById('console') && !document.getElementById('console').hidden ? 'ready' : 'waiting'`,
       returnByValue: true,
     });
-    if (check.result.value === "ready") break;
+    if (state.result.value === "ready") break;
   }
 }
 
-const summary = await c.send("Runtime.evaluate", {
+await sleep(2200);
+const info = await c.send("Runtime.evaluate", {
   expression: `(() => {
-    const kpis = Array.from(document.querySelectorAll('#admin-kpis > div')).map(d => d.textContent.replace(/\\s+/g,' ').trim());
-    const err = document.getElementById('admin-login-error');
+    const items = Array.from(document.querySelectorAll('.ledger-item')).map(d => d.textContent.replace(/\\s+/g,' ').trim());
     return JSON.stringify({
-      dashboard: document.getElementById('admin-dashboard') && !document.getElementById('admin-dashboard').classList.contains('hidden'),
-      loginError: err && !err.classList.contains('hidden') ? err.textContent : null,
-      kpis,
-      trendBars: document.querySelectorAll('#admin-trend > div').length,
-      topRows: document.querySelectorAll('#admin-top-pages > div').length,
-      aiRecent: document.querySelectorAll('#admin-ai-recent > div').length,
+      ledger: items,
+      rankRows: document.querySelectorAll('#ranking li').length,
+      logRows: document.querySelectorAll('#log li').length,
+      ring: document.getElementById('ring-value')?.textContent,
+      stamp: document.getElementById('stamp')?.textContent,
     });
   })()`,
   returnByValue: true,
 });
-console.log("面板内容:", summary.result.value);
+console.log(info.result.value);
 
-await sleep(800);
 const shot = await c.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
 const fs = await import("node:fs/promises");
 await fs.writeFile(OUT, Buffer.from(shot.data, "base64"));

@@ -240,36 +240,70 @@ async function handleOverview(request, env) {
 	if (!(await isAdmin(request, env))) return json({ error: "未登录" }, 401);
 	if (!env?.DB) return json({ error: "数据库还没绑定" }, 500);
 
-	const todayStr = today();
-	const fromStr = daysAgo(13);
+	const requestUrl = new URL(request.url);
+	const rangeParam = Number(requestUrl.searchParams.get("range") ?? 14);
+	const range = [7, 14, 30].includes(rangeParam) ? rangeParam : 14;
 
-	const [totalViews, todayViews, series, topPages, aiTotal, aiToday, aiAvg, aiTokens, aiRecent, aiModels] = await env.DB.batch([
+	const todayStr = today();
+	const yesterdayStr = daysAgo(1);
+	const fromStr = daysAgo(range - 1);
+
+	const [
+		totalViews,
+		todayViews,
+		yesterdayViews,
+		series,
+		topPages,
+		aiTotal,
+		aiToday,
+		aiYesterday,
+		aiAvg,
+		aiTokens,
+		aiRecent,
+		aiModels,
+		aiSeries,
+		aiOkTotal,
+	] = await env.DB.batch([
 		env.DB.prepare("SELECT COALESCE(SUM(count), 0) AS v FROM views"),
 		env.DB.prepare("SELECT COALESCE(SUM(count), 0) AS v FROM views WHERE day = ?").bind(todayStr),
+		env.DB.prepare("SELECT COALESCE(SUM(count), 0) AS v FROM views WHERE day = ?").bind(yesterdayStr),
 		env.DB.prepare("SELECT day, SUM(count) AS v FROM views WHERE day >= ? GROUP BY day ORDER BY day").bind(fromStr),
-		env.DB.prepare("SELECT path, SUM(count) AS v FROM views GROUP BY path ORDER BY v DESC LIMIT 10"),
+		env.DB.prepare(
+			"SELECT path, SUM(count) AS v FROM views WHERE day >= ? GROUP BY path ORDER BY v DESC LIMIT 8",
+		).bind(fromStr),
 		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log"),
 		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log WHERE day = ?").bind(todayStr),
-		env.DB.prepare("SELECT AVG(ms) AS v FROM ai_log WHERE ok = 1 AND day >= ?").bind(daysAgo(7)),
+		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log WHERE day = ?").bind(yesterdayStr),
+		env.DB.prepare("SELECT AVG(ms) AS v FROM ai_log WHERE ok = 1 AND day >= ?").bind(fromStr),
 		env.DB.prepare("SELECT COALESCE(SUM(tokens), 0) AS v FROM ai_log"),
-		env.DB.prepare("SELECT ts, question, model, ms, ok FROM ai_log ORDER BY id DESC LIMIT 20"),
+		env.DB.prepare("SELECT ts, question, model, ms, ok FROM ai_log ORDER BY id DESC LIMIT 15"),
 		env.DB.prepare("SELECT model, COUNT(*) AS v FROM ai_log GROUP BY model ORDER BY v DESC LIMIT 5"),
+		env.DB.prepare("SELECT day, COUNT(*) AS v FROM ai_log WHERE day >= ? GROUP BY day ORDER BY day").bind(fromStr),
+		env.DB.prepare("SELECT COALESCE(SUM(ok), 0) AS v FROM ai_log"),
 	]);
+
+	const totalAi = aiTotal?.results?.[0]?.v ?? 0;
+	const okAi = aiOkTotal?.results?.[0]?.v ?? 0;
 
 	return json({
 		generatedAt: new Date().toISOString(),
 		today: todayStr,
+		range,
 		views: {
 			total: totalViews?.results?.[0]?.v ?? 0,
 			today: todayViews?.results?.[0]?.v ?? 0,
+			yesterday: yesterdayViews?.results?.[0]?.v ?? 0,
 			series: (series?.results ?? []).map((row) => ({ day: row.day, count: row.v })),
 			top: (topPages?.results ?? []).map((row) => ({ path: row.path, count: row.v })),
 		},
 		ai: {
-			total: aiTotal?.results?.[0]?.v ?? 0,
+			total: totalAi,
 			today: aiToday?.results?.[0]?.v ?? 0,
+			yesterday: aiYesterday?.results?.[0]?.v ?? 0,
 			avgMs: Math.round(aiAvg?.results?.[0]?.v ?? 0),
 			tokens: aiTokens?.results?.[0]?.v ?? 0,
+			successRate: totalAi > 0 ? Math.round((okAi / totalAi) * 100) : 100,
+			series: (aiSeries?.results ?? []).map((row) => ({ day: row.day, count: row.v })),
 			recent: (aiRecent?.results ?? []).map((row) => ({
 				ts: row.ts,
 				question: row.question,

@@ -1,299 +1,1069 @@
 ---
-import MainGridLayout from "@layouts/MainGridLayout.astro";
+import "@fontsource-variable/jetbrains-mono";
+import Layout from "@layouts/Layout.astro";
 ---
 
-<MainGridLayout title="后台">
-	<div id="admin-root" class="space-y-4">
-		<div id="admin-loading" class="card-base rounded-2xl px-6 py-10 text-center text-75">正在读取数据…</div>
-
+<Layout title="数据台">
+	<main class="dash" id="dash">
 		<!-- 登录 -->
-		<section id="admin-login" class="card-base rounded-2xl px-6 py-10 max-w-md mx-auto hidden">
-			<h1 class="text-xl font-bold mb-1">后台登录</h1>
-			<p class="text-sm text-75 mb-6">只有你自己能看，数据不会对外公开。</p>
-			<form id="admin-login-form" class="space-y-3">
-				<input
-					id="admin-password"
-					type="password"
-					placeholder="后台密码"
-					autocomplete="current-password"
-					class="w-full px-3 py-2 rounded-lg bg-[var(--btn-plain-bg-hover)] text-sm"
-				/>
-				<button type="submit" class="w-full py-2 rounded-lg text-white text-sm font-medium" style="background: var(--primary)">
-					进入
-				</button>
-				<p id="admin-login-error" class="text-sm hidden" style="color: #e5484d"></p>
-			</form>
+		<section class="gate" id="gate" hidden>
+			<div class="gate-inner">
+				<p class="kicker">WKB / 数据台</p>
+				<h1 class="gate-title">只给博主自己看</h1>
+				<p class="gate-sub">输入后台密码。数据不会对任何访客公开。</p>
+				<form id="login-form" class="gate-form">
+					<input id="password" type="password" placeholder="后台密码" autocomplete="current-password" />
+					<button type="submit">进入</button>
+				</form>
+				<p class="gate-error" id="login-error" hidden></p>
+			</div>
 		</section>
 
-		<!-- 数据面板 -->
-		<div id="admin-dashboard" class="hidden space-y-4">
-			<div class="card-base rounded-2xl px-6 py-5 flex flex-wrap items-center justify-between gap-3">
-				<div>
-					<h1 class="text-xl font-bold">博客后台</h1>
-					<p class="text-xs text-75 mt-1" id="admin-updated"></p>
+		<!-- 数据台 -->
+		<div id="console" hidden>
+			<header class="masthead">
+				<div class="masthead-left">
+					<p class="kicker">WKB · 数据台</p>
+					<h1 class="masthead-title">博客编辑部</h1>
 				</div>
-				<button id="admin-logout" class="text-sm px-3 py-1.5 rounded-lg bg-[var(--btn-plain-bg-hover)]">退出登录</button>
+				<div class="masthead-right">
+					<p class="stamp" id="stamp">——</p>
+					<div class="controls">
+						<a class="ghost" href="/">← 回博客</a>
+						<div class="seg" role="group" aria-label="时间范围">
+							<button type="button" data-range="7">7 天</button>
+							<button type="button" data-range="14" class="is-active">14 天</button>
+							<button type="button" data-range="30">30 天</button>
+						</div>
+						<button type="button" class="ghost" id="refresh">刷新</button>
+						<button type="button" class="ghost" id="logout">退出</button>
+					</div>
+				</div>
+			</header>
+
+			<div class="rule"></div>
+
+			<!-- 数字条 -->
+			<section class="ledger" id="ledger"></section>
+
+			<div class="rule"></div>
+
+			<!-- 趋势 -->
+			<section class="block trend-block">
+				<div class="block-head">
+					<h2>阅读趋势</h2>
+					<p class="block-note" id="trend-note"></p>
+				</div>
+				<div class="chart-wrap">
+					<svg id="trend" class="chart" viewBox="0 0 800 260" preserveAspectRatio="none" aria-label="阅读趋势"></svg>
+				</div>
+				<div class="chart-axis" id="trend-axis"></div>
+			</section>
+
+			<div class="rule"></div>
+
+			<div class="split">
+				<!-- 热门 -->
+				<section class="block">
+					<div class="block-head">
+						<h2>热门页面</h2>
+						<p class="block-note">按阅读次数</p>
+					</div>
+					<ol class="ranking" id="ranking"></ol>
+				</section>
+
+				<!-- AI -->
+				<section class="block">
+					<div class="block-head">
+						<h2>AI 助手</h2>
+						<p class="block-note">站内问答的使用情况</p>
+					</div>
+					<div class="ai-panel">
+						<div class="ring-wrap">
+							<svg class="ring" viewBox="0 0 120 120" aria-label="成功率">
+								<circle class="ring-track" cx="60" cy="60" r="52"></circle>
+								<circle class="ring-value" id="ring" cx="60" cy="60" r="52"></circle>
+							</svg>
+							<div class="ring-label">
+								<strong id="ring-value">—</strong>
+								<span>成功率</span>
+							</div>
+						</div>
+						<dl class="ai-facts" id="ai-facts"></dl>
+					</div>
+					<div class="models" id="models"></div>
+				</section>
 			</div>
 
-			<div id="admin-kpis" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+			<div class="rule"></div>
 
-			<div class="grid md:grid-cols-2 gap-3">
-				<section class="card-base rounded-2xl px-5 py-5">
-					<h2 class="font-bold mb-4 text-sm">最近 14 天阅读量</h2>
-					<div id="admin-trend" class="flex items-end gap-1 h-40"></div>
-				</section>
+			<!-- 提问记录 -->
+			<section class="block">
+				<div class="block-head">
+					<h2>最近的提问</h2>
+					<p class="block-note">访客都问了什么</p>
+				</div>
+				<ul class="log" id="log"></ul>
+			</section>
 
-				<section class="card-base rounded-2xl px-5 py-5">
-					<h2 class="font-bold mb-4 text-sm">热门页面 Top 10</h2>
-					<div id="admin-top-pages" class="space-y-2 text-sm"></div>
-				</section>
-			</div>
-
-			<div class="grid md:grid-cols-2 gap-3">
-				<section class="card-base rounded-2xl px-5 py-5">
-					<h2 class="font-bold mb-4 text-sm">AI 使用情况</h2>
-					<div id="admin-ai-stats" class="space-y-2 text-sm"></div>
-				</section>
-
-				<section class="card-base rounded-2xl px-5 py-5">
-					<h2 class="font-bold mb-4 text-sm">最近的提问</h2>
-					<div id="admin-ai-recent" class="space-y-2 text-sm max-h-72 overflow-y-auto pr-1"></div>
-				</section>
-			</div>
+			<footer class="foot">
+				<span id="foot-note">统计时区 GMT+8 · 不记录访客 IP</span>
+			</footer>
 		</div>
-	</div>
-</MainGridLayout>
+	</main>
+</Layout>
+
+<style is:global>
+	#ai-chat {
+		display: none !important;
+	}
+
+	.dash {
+		--paper: #f4f2ec;
+		--ink: #17170f;
+		--ink-soft: #5f5d51;
+		--ink-faint: #918d7d;
+		--hair: #dcd7c9;
+		--accent: #b23a1f;
+		--accent-soft: rgba(178, 58, 31, 0.085);
+		--leaf: #35564a;
+		--mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+		--serif: "Songti SC", "Noto Serif SC", "Source Han Serif SC", "SimSun", Georgia, serif;
+		--sans: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, sans-serif;
+
+		min-height: 100vh;
+		padding: 0 1.25rem 4rem;
+		background-color: var(--paper);
+		background-image: radial-gradient(circle at 12% -10%, rgba(178, 58, 31, 0.06), transparent 45%),
+			radial-gradient(circle at 92% 4%, rgba(53, 86, 74, 0.07), transparent 40%);
+		color: var(--ink);
+		font-family: var(--sans);
+		-webkit-font-smoothing: antialiased;
+	}
+	html.dark .dash {
+		--paper: #121210;
+		--ink: #ece8dd;
+		--ink-soft: #a5a094;
+		--ink-faint: #726d62;
+		--hair: #2b2a25;
+		--accent: #e4654a;
+		--accent-soft: rgba(228, 101, 74, 0.14);
+		--leaf: #7fa595;
+		background-image: radial-gradient(circle at 10% -8%, rgba(228, 101, 74, 0.1), transparent 45%),
+			radial-gradient(circle at 94% 2%, rgba(127, 165, 149, 0.08), transparent 40%);
+	}
+
+	.dash * {
+		box-sizing: border-box;
+	}
+
+	/* hidden 属性要压过 display:grid/flex，否则登录页和数据台会同时出现 */
+	.dash [hidden] {
+		display: none !important;
+	}
+
+	.kicker {
+		margin: 0;
+		font-family: var(--mono);
+		font-size: 0.62rem;
+		letter-spacing: 0.24em;
+		text-transform: uppercase;
+		color: var(--ink-faint);
+	}
+
+	/* ---------- 登录 ---------- */
+	.gate {
+		min-height: 100vh;
+		display: grid;
+		place-items: center;
+	}
+	.gate-inner {
+		width: min(24rem, 100%);
+		text-align: center;
+	}
+	.gate-title {
+		margin: 1.2rem 0 0.6rem;
+		font-family: var(--serif);
+		font-size: 2rem;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+	}
+	.gate-sub {
+		margin: 0 0 2rem;
+		font-size: 0.82rem;
+		line-height: 1.7;
+		color: var(--ink-soft);
+	}
+	.gate-form {
+		display: flex;
+		gap: 0.5rem;
+		border-bottom: 1px solid var(--hair);
+		padding-bottom: 0.6rem;
+	}
+	.gate-form input {
+		flex: 1;
+		min-width: 0;
+		background: transparent;
+		border: 0;
+		outline: none;
+		font-family: var(--mono);
+		font-size: 0.95rem;
+		letter-spacing: 0.12em;
+		color: var(--ink);
+		padding: 0.4rem 0;
+	}
+	.gate-form input::placeholder {
+		color: var(--ink-faint);
+		letter-spacing: 0.04em;
+	}
+	.gate-form button {
+		border: 0;
+		background: var(--ink);
+		color: var(--paper);
+		font-size: 0.8rem;
+		letter-spacing: 0.12em;
+		padding: 0.5rem 1.1rem;
+		cursor: pointer;
+		transition: background 0.2s ease;
+	}
+	.gate-form button:hover {
+		background: var(--accent);
+	}
+	.gate-error {
+		margin: 1rem 0 0;
+		font-size: 0.8rem;
+		color: var(--accent);
+	}
+
+	/* ---------- 刊头 ---------- */
+	.masthead {
+		max-width: 78rem;
+		margin: 0 auto;
+		padding: 2.4rem 0 1.2rem;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 1.2rem;
+	}
+	.masthead-title {
+		margin: 0.5rem 0 0;
+		font-family: var(--serif);
+		font-size: clamp(1.9rem, 5vw, 2.9rem);
+		font-weight: 600;
+		letter-spacing: 0.03em;
+		line-height: 1.05;
+	}
+	.masthead-right {
+		text-align: right;
+	}
+	.stamp {
+		margin: 0 0 0.9rem;
+		font-family: var(--mono);
+		font-size: 0.7rem;
+		letter-spacing: 0.1em;
+		color: var(--ink-faint);
+	}
+	.controls {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+	.seg {
+		display: inline-flex;
+		border: 1px solid var(--hair);
+	}
+	.seg button {
+		border: 0;
+		background: transparent;
+		color: var(--ink-soft);
+		font-family: var(--mono);
+		font-size: 0.68rem;
+		letter-spacing: 0.08em;
+		padding: 0.42rem 0.7rem;
+		cursor: pointer;
+		transition: all 0.18s ease;
+	}
+	.seg button + button {
+		border-left: 1px solid var(--hair);
+	}
+	.seg button:hover {
+		color: var(--ink);
+	}
+	.seg button.is-active {
+		background: var(--ink);
+		color: var(--paper);
+	}
+	.ghost {
+		display: inline-flex;
+		align-items: center;
+		text-decoration: none;
+		border: 1px solid var(--hair);
+		background: transparent;
+		color: var(--ink-soft);
+		font-size: 0.7rem;
+		letter-spacing: 0.1em;
+		padding: 0.42rem 0.8rem;
+		cursor: pointer;
+		transition: all 0.18s ease;
+	}
+	.ghost:hover {
+		color: var(--ink);
+		border-color: var(--ink);
+	}
+	.rule {
+		max-width: 78rem;
+		margin: 0 auto;
+		height: 1px;
+		background: var(--hair);
+	}
+	.masthead + .rule {
+		height: 3px;
+		border-top: 1px solid var(--hair);
+		border-bottom: 1px solid var(--hair);
+		background: transparent;
+	}
+
+	/* ---------- 数字条 ---------- */
+	.ledger {
+		max-width: 78rem;
+		margin: 0 auto;
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		border-bottom: 1px solid var(--hair);
+	}
+	.ledger-item {
+		padding: 1.35rem 1.1rem 1.2rem;
+		border-right: 1px solid var(--hair);
+		animation: rise 0.5s cubic-bezier(0.22, 0.68, 0.28, 1) both;
+	}
+	.ledger-item:nth-child(4n) {
+		border-right: 0;
+	}
+	.ledger-item:nth-child(n + 5) {
+		border-top: 1px solid var(--hair);
+	}
+	.ledger-label {
+		margin: 0 0 0.55rem;
+		font-family: var(--mono);
+		font-size: 0.62rem;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--ink-faint);
+	}
+	.ledger-value {
+		display: flex;
+		align-items: baseline;
+		gap: 0.35rem;
+		font-family: var(--mono);
+		font-size: clamp(1.6rem, 4.4vw, 2.15rem);
+		font-weight: 500;
+		letter-spacing: -0.02em;
+		line-height: 1;
+		font-variant-numeric: tabular-nums;
+	}
+	.ledger-delta {
+		font-family: var(--mono);
+		font-size: 0.66rem;
+		letter-spacing: 0.04em;
+		color: var(--ink-faint);
+	}
+	.ledger-delta.up {
+		color: var(--leaf);
+	}
+	.ledger-delta.down {
+		color: var(--accent);
+	}
+
+	/* ---------- 区块 ---------- */
+	.block {
+		max-width: 78rem;
+		margin: 0 auto;
+		padding: 1.6rem 0 1.9rem;
+	}
+	.block-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 1.2rem;
+	}
+	.block-head h2 {
+		margin: 0;
+		font-family: var(--serif);
+		font-size: 1.15rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+	}
+	.block-note {
+		margin: 0;
+		font-family: var(--mono);
+		font-size: 0.64rem;
+		letter-spacing: 0.1em;
+		color: var(--ink-faint);
+	}
+
+	/* ---------- 趋势图 ---------- */
+	.chart-wrap {
+		position: relative;
+		width: 100%;
+		height: clamp(11rem, 34vw, 15rem);
+	}
+	.chart {
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+	}
+	.chart-grid line {
+		stroke: var(--hair);
+		stroke-width: 1;
+		vector-effect: non-scaling-stroke;
+	}
+	.chart-area {
+		fill: var(--accent-soft);
+		opacity: 0;
+		animation: fade 0.9s ease 0.25s forwards;
+	}
+	.chart-line {
+		fill: none;
+		stroke: var(--accent);
+		stroke-width: 1.6;
+		vector-effect: non-scaling-stroke;
+		stroke-linejoin: round;
+		stroke-linecap: round;
+	}
+	.chart-line.animate {
+		stroke-dasharray: 2400;
+		stroke-dashoffset: 2400;
+		animation: draw 1.4s cubic-bezier(0.3, 0.8, 0.3, 1) forwards;
+	}
+	.chart-dot {
+		fill: var(--paper);
+		stroke: var(--accent);
+		stroke-width: 1.6;
+		vector-effect: non-scaling-stroke;
+	}
+	.chart-y {
+		font-family: var(--mono);
+		font-size: 9px;
+		fill: var(--ink-faint);
+	}
+	.chart-axis {
+		display: flex;
+		justify-content: space-between;
+		margin-top: 0.7rem;
+		font-family: var(--mono);
+		font-size: 0.62rem;
+		letter-spacing: 0.08em;
+		color: var(--ink-faint);
+	}
+
+	/* ---------- 热门榜 ---------- */
+	.ranking {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.ranking li {
+		display: grid;
+		grid-template-columns: 2.1rem 1fr auto;
+		align-items: baseline;
+		gap: 0.7rem;
+		padding: 0.75rem 0;
+		border-bottom: 1px dashed var(--hair);
+		animation: rise 0.5s cubic-bezier(0.22, 0.68, 0.28, 1) both;
+	}
+	.ranking li:last-child {
+		border-bottom: 0;
+	}
+	.rank-no {
+		font-family: var(--mono);
+		font-size: 0.7rem;
+		color: var(--accent);
+		letter-spacing: 0.06em;
+	}
+	.rank-body {
+		display: block;
+		min-width: 0;
+	}
+	.rank-title {
+		display: block;
+		color: var(--ink);
+		text-decoration: none;
+		font-size: 0.9rem;
+		line-height: 1.4;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.rank-title:hover {
+		color: var(--accent);
+	}
+	.rank-track {
+		display: block;
+		margin-top: 0.45rem;
+		height: 2px;
+		background: var(--hair);
+	}
+	.rank-track i {
+		display: block;
+		height: 100%;
+		background: var(--accent);
+		width: 0;
+		transition: width 0.9s cubic-bezier(0.3, 0.8, 0.3, 1);
+	}
+	.rank-count {
+		font-family: var(--mono);
+		font-size: 0.78rem;
+		font-variant-numeric: tabular-nums;
+		color: var(--ink-soft);
+	}
+
+	/* ---------- AI ---------- */
+	.split {
+		max-width: 78rem;
+		margin: 0 auto;
+		display: grid;
+		grid-template-columns: 1.15fr 1fr;
+		gap: 0 3rem;
+	}
+	/* 分栏里的 block 不要再用 auto 居中，否则两块会左右错开 */
+	.split > .block {
+		max-width: none;
+		margin: 0;
+	}
+
+	.ai-panel {
+		display: flex;
+		align-items: center;
+		gap: 1.6rem;
+	}
+	.ring-wrap {
+		position: relative;
+		width: 6.4rem;
+		height: 6.4rem;
+		flex-shrink: 0;
+	}
+	.ring {
+		width: 100%;
+		height: 100%;
+		transform: rotate(-90deg);
+	}
+	.ring-track {
+		fill: none;
+		stroke: var(--hair);
+		stroke-width: 5;
+	}
+	.ring-value {
+		fill: none;
+		stroke: var(--leaf);
+		stroke-width: 5;
+		stroke-linecap: round;
+		stroke-dasharray: 327;
+		stroke-dashoffset: 327;
+		transition: stroke-dashoffset 1.2s cubic-bezier(0.3, 0.8, 0.3, 1);
+	}
+	.ring-label {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-content: center;
+		text-align: center;
+	}
+	.ring-label strong {
+		font-family: var(--mono);
+		font-size: 1.15rem;
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
+	}
+	.ring-label span {
+		font-family: var(--mono);
+		font-size: 0.55rem;
+		letter-spacing: 0.14em;
+		color: var(--ink-faint);
+	}
+	.ai-facts {
+		margin: 0;
+		display: grid;
+		gap: 0.55rem;
+		flex: 1;
+		min-width: 0;
+	}
+	.ai-facts div {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.6rem;
+		border-bottom: 1px dashed var(--hair);
+		padding-bottom: 0.4rem;
+	}
+	.ai-facts dt {
+		font-size: 0.74rem;
+		color: var(--ink-soft);
+		white-space: nowrap;
+	}
+	.ai-facts dd {
+		margin: 0;
+		font-family: var(--mono);
+		font-size: 0.82rem;
+		font-variant-numeric: tabular-nums;
+	}
+	.models {
+		margin-top: 1rem;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+	.model-chip {
+		display: inline-flex;
+		flex-direction: column;
+		border: 1px solid var(--hair);
+		padding: 0.4rem 0.6rem;
+		font-family: var(--mono);
+		font-size: 0.6rem;
+		letter-spacing: 0.04em;
+		color: var(--ink-soft);
+	}
+	.model-chip b {
+		color: var(--ink);
+		font-weight: 500;
+	}
+
+	/* ---------- 提问日志 ---------- */
+	.log {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.log li {
+		display: grid;
+		grid-template-columns: 5.6rem 1fr auto;
+		align-items: baseline;
+		gap: 0.9rem;
+		padding: 0.7rem 0;
+		border-bottom: 1px dashed var(--hair);
+		animation: rise 0.45s cubic-bezier(0.22, 0.68, 0.28, 1) both;
+	}
+	.log li:last-child {
+		border-bottom: 0;
+	}
+	.log-time {
+		font-family: var(--mono);
+		font-size: 0.66rem;
+		color: var(--ink-faint);
+		letter-spacing: 0.04em;
+	}
+	.log-q {
+		font-size: 0.88rem;
+		line-height: 1.5;
+		overflow-wrap: anywhere;
+	}
+	.log-meta {
+		font-family: var(--mono);
+		font-size: 0.64rem;
+		color: var(--ink-faint);
+		white-space: nowrap;
+	}
+	.log-meta.bad {
+		color: var(--accent);
+	}
+	.empty {
+		padding: 1.4rem 0;
+		font-size: 0.8rem;
+		color: var(--ink-faint);
+	}
+
+	.foot {
+		max-width: 78rem;
+		margin: 0 auto;
+		padding: 1.4rem 0 0;
+		font-family: var(--mono);
+		font-size: 0.62rem;
+		letter-spacing: 0.1em;
+		color: var(--ink-faint);
+	}
+
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+	@keyframes draw {
+		to {
+			stroke-dashoffset: 0;
+		}
+	}
+	@keyframes fade {
+		to {
+			opacity: 1;
+		}
+	}
+
+	@media (max-width: 860px) {
+		.split {
+			grid-template-columns: 1fr;
+		}
+		.ledger {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+		.ledger-item:nth-child(2n) {
+			border-right: 0;
+		}
+		.ledger-item:nth-child(odd) {
+			border-right: 1px solid var(--hair);
+		}
+		.masthead-right {
+			text-align: left;
+			width: 100%;
+		}
+		.controls {
+			justify-content: flex-start;
+		}
+		.log li {
+			grid-template-columns: 1fr auto;
+			row-gap: 0.25rem;
+		}
+		.log-time {
+			grid-column: 1 / -1;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.dash * {
+			animation: none !important;
+			transition: none !important;
+		}
+	}
+</style>
 
 <script>
 	type Overview = {
 		generatedAt: string;
 		today: string;
+		range: number;
 		views: {
 			total: number;
 			today: number;
+			yesterday: number;
 			series: { day: string; count: number }[];
 			top: { path: string; count: number }[];
 		};
 		ai: {
 			total: number;
 			today: number;
+			yesterday: number;
 			avgMs: number;
 			tokens: number;
+			successRate: number;
+			series: { day: string; count: number }[];
 			recent: { ts: string; question: string; model: string; ms: number; ok: number }[];
 			models: { model: string; count: number }[];
 		};
 	};
 
-	type PostMeta = { title: string; tags?: string[]; category?: string };
+	type PostMeta = { title: string; url: string; tags?: string[]; category?: string };
 
-	const $ = (id: string) => document.getElementById(id);
+	const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T | null;
 
-	function show(id: string) {
-		$(id)?.classList.remove("hidden");
-	}
-	function hide(id: string) {
-		$(id)?.classList.add("hidden");
-	}
+	let range = 14;
+	let titles = new Map<string, string>();
+	let postsCache: PostMeta[] = [];
 
-	function fmtTime(iso: string) {
-		const date = new Date(iso);
-		if (Number.isNaN(date.getTime())) return iso;
-		const pad = (n: number) => String(n).padStart(2, "0");
-		return `${date.getMonth() + 1}/${date.getDate()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-	}
+	const fmtNum = (value: number) => value.toLocaleString("zh-CN");
+	const pad = (value: number) => String(value).padStart(2, "0");
 
-	function kpiCard(label: string, value: string, hint = "") {
-		const card = document.createElement("div");
-		card.className = "card-base rounded-2xl px-4 py-4";
-		card.innerHTML = `
-			<div class="text-xs text-75">${label}</div>
-			<div class="text-2xl font-bold mt-1" style="color: var(--primary)">${value}</div>
-			${hint ? `<div class="text-xs text-75 mt-1">${hint}</div>` : ""}
-		`;
-		return card;
+	/* 数字滚动 */
+	function countUp(node: HTMLElement, target: number) {
+		const duration = 700;
+		const start = performance.now();
+		function step(now: number) {
+			const progress = Math.min(1, (now - start) / duration);
+			const eased = 1 - (1 - progress) ** 3;
+			node.textContent = fmtNum(Math.round(target * eased));
+			if (progress < 1) requestAnimationFrame(step);
+		}
+		requestAnimationFrame(step);
 	}
 
-	function renderTrend(series: { day: string; count: number }[]) {
-		const box = $("admin-trend");
+	function deltaHtml(today: number, yesterday: number) {
+		if (yesterday === 0 && today === 0) return "";
+		if (yesterday === 0) return `<span class="ledger-delta up">昨日 0</span>`;
+		const diff = today - yesterday;
+		const pct = Math.round((diff / yesterday) * 100);
+		if (diff === 0) return `<span class="ledger-delta">持平</span>`;
+		const cls = diff > 0 ? "up" : "down";
+		const arrow = diff > 0 ? "▲" : "▼";
+		return `<span class="ledger-delta ${cls}">${arrow} ${Math.abs(pct)}% · 昨日 ${fmtNum(yesterday)}</span>`;
+	}
+
+	function renderLedger(data: Overview) {
+		const box = $("#ledger");
 		if (!box) return;
-		box.innerHTML = "";
-		// 补齐没有数据的日期，让柱子等宽
+		const tags = new Set<string>();
+		const categories = new Set<string>();
+		for (const post of postsCache) {
+			for (const tag of post.tags ?? []) tags.add(tag);
+			if (post.category) categories.add(post.category);
+		}
+
+		const items: { label: string; value: number; extra?: string; suffix?: string }[] = [
+			{ label: "文章", value: postsCache.length, extra: `<span class="ledger-delta">${categories.size} 个分类</span>` },
+			{ label: "标签", value: tags.size, extra: `<span class="ledger-delta">去重后</span>` },
+			{ label: "今日阅读", value: data.views.today, extra: deltaHtml(data.views.today, data.views.yesterday) },
+			{ label: "累计阅读", value: data.views.total, extra: `<span class="ledger-delta">${data.range} 天内 ${fmtNum(data.views.series.reduce((sum, row) => sum + row.count, 0))}</span>` },
+			{ label: "AI 提问", value: data.ai.total, extra: deltaHtml(data.ai.today, data.ai.yesterday) },
+			{ label: "AI 平均响应", value: Number((data.ai.avgMs / 1000).toFixed(1)), suffix: "s", extra: `<span class="ledger-delta">近 ${data.range} 天</span>` },
+			{ label: "累计 tokens", value: data.ai.tokens, extra: `<span class="ledger-delta">模型调用量</span>` },
+			{ label: "对话成功率", value: data.ai.successRate, suffix: "%", extra: `<span class="ledger-delta">${data.ai.total} 次中有 ${Math.round((data.ai.total * data.ai.successRate) / 100)} 次成功</span>` },
+		];
+
+		box.innerHTML = items
+			.map(
+				(item, index) => `
+			<div class="ledger-item" style="animation-delay:${index * 45}ms">
+				<p class="ledger-label">${item.label}</p>
+				<div class="ledger-value"><span data-count="${item.value}">0</span>${item.suffix ? `<span style="font-size:0.8em;color:var(--ink-faint)">${item.suffix}</span>` : ""}</div>
+				<div style="margin-top:0.5rem">${item.extra ?? ""}</div>
+			</div>`,
+			)
+			.join("");
+
+		for (const node of box.querySelectorAll<HTMLElement>("[data-count]")) {
+			countUp(node, Number(node.dataset.count ?? 0));
+		}
+	}
+
+	function fillSeries(series: { day: string; count: number }[], days: number) {
 		const map = new Map(series.map((row) => [row.day, row.count]));
-		const days: { day: string; count: number }[] = [];
-		for (let i = 13; i >= 0; i--) {
+		const out: { day: string; count: number }[] = [];
+		for (let i = days - 1; i >= 0; i--) {
 			const date = new Date(Date.now() + 8 * 3600 * 1000 - i * 86400000);
 			const key = date.toISOString().slice(0, 10);
-			days.push({ day: key, count: map.get(key) ?? 0 });
+			out.push({ day: key, count: map.get(key) ?? 0 });
 		}
-		const max = Math.max(1, ...days.map((d) => d.count));
-		for (const item of days) {
-			const col = document.createElement("div");
-			col.className = "flex-1 flex flex-col items-center justify-end gap-1 h-full";
-			const height = Math.max(2, Math.round((item.count / max) * 100));
-			col.innerHTML = `
-				<div class="text-[10px] text-75">${item.count || ""}</div>
-				<div class="w-full rounded-t" style="height:${height}%; background: var(--primary); opacity:${item.count ? 0.85 : 0.15}"></div>
-				<div class="text-[10px] text-75">${item.day.slice(8)}</div>
-			`;
-			box.appendChild(col);
+		return out;
+	}
+
+	function renderTrend(data: Overview) {
+		const svg = $("#trend") as unknown as SVGSVGElement | null;
+		if (!svg) return;
+		const days = fillSeries(data.views.series, data.range);
+		const width = 800;
+		const height = 260;
+		const padTop = 18;
+		const padBottom = 26;
+		const max = Math.max(4, ...days.map((d) => d.count));
+		const stepX = days.length > 1 ? width / (days.length - 1) : width;
+		const yOf = (value: number) => padTop + (1 - value / max) * (height - padTop - padBottom);
+
+		const points = days.map((item, index) => `${(index * stepX).toFixed(1)},${yOf(item.count).toFixed(1)}`);
+		const linePath = `M ${points.join(" L ")}`;
+		const areaPath = `${linePath} L ${width},${height - padBottom} L 0,${height - padBottom} Z`;
+
+		const gridLines = [0, 0.5, 1]
+			.map((ratio) => {
+				const y = padTop + ratio * (height - padTop - padBottom);
+				const label = Math.round(max * (1 - ratio));
+				return `<line x1="0" y1="${y}" x2="${width}" y2="${y}" />
+					<text class="chart-y" x="0" y="${y - 5}">${label}</text>`;
+			})
+			.join("");
+
+		const dots = days
+			.map((item, index) => {
+				if (item.count === 0) return "";
+				return `<circle class="chart-dot" cx="${(index * stepX).toFixed(1)}" cy="${yOf(item.count).toFixed(1)}" r="2.6" />`;
+			})
+			.join("");
+
+		svg.innerHTML = `
+			<g class="chart-grid">${gridLines}</g>
+			<path class="chart-area" d="${areaPath}" />
+			<path class="chart-line animate" d="${linePath}" />
+			${dots}
+		`;
+
+		const axis = $("#trend-axis");
+		if (axis) {
+			const picks = days.length <= 8 ? days : days.filter((_, index) => index % Math.ceil(days.length / 7) === 0 || index === days.length - 1);
+			axis.innerHTML = picks.map((item) => `<span>${Number(item.day.slice(5, 7))}/${Number(item.day.slice(8, 10))}</span>`).join("");
+		}
+
+		const note = $("#trend-note");
+		if (note) {
+			const sum = days.reduce((acc, row) => acc + row.count, 0);
+			note.textContent = `${data.range} 天共 ${fmtNum(sum)} 次 · 日均 ${(sum / data.range).toFixed(1)}`;
 		}
 	}
 
-	function renderTopPages(top: { path: string; count: number }[]) {
-		const box = $("admin-top-pages");
+	function renderRanking(data: Overview) {
+		const box = $("#ranking");
 		if (!box) return;
-		box.innerHTML = "";
-		if (top.length === 0) {
-			box.innerHTML = `<p class="text-75 text-xs">还没有数据（有人访问后才会有）</p>`;
+		if (data.views.top.length === 0) {
+			box.innerHTML = `<li class="empty" style="display:block;border:0">还没有数据，等有人访问后就会出现</li>`;
 			return;
 		}
-		const max = Math.max(...top.map((item) => item.count));
-		for (const item of top) {
-			const row = document.createElement("div");
-			row.className = "relative";
-			row.innerHTML = `
-				<div class="relative z-10 flex items-center justify-between gap-3 px-2 py-1.5">
-					<a href="${item.path}" class="truncate hover:underline" style="color: inherit">${item.path}</a>
-					<span class="tabular-nums text-75 shrink-0">${item.count}</span>
-				</div>
-				<div class="absolute inset-y-0 left-0 rounded" style="width:${Math.round((item.count / max) * 100)}%; background: var(--btn-plain-bg-hover)"></div>
-			`;
-			box.appendChild(row);
-		}
+		const max = Math.max(...data.views.top.map((item) => item.count));
+		box.innerHTML = data.views.top
+			.map((item, index) => {
+				const title = titles.get(item.path) ?? item.path;
+				return `<li style="animation-delay:${index * 45}ms">
+					<span class="rank-no">${pad(index + 1)}</span>
+					<span class="rank-body">
+						<a class="rank-title" href="${item.path}">${title}</a>
+						<span class="rank-track"><i data-width="${Math.round((item.count / max) * 100)}"></i></span>
+					</span>
+					<span class="rank-count">${fmtNum(item.count)}</span>
+				</li>`;
+			})
+			.join("");
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				for (const bar of box.querySelectorAll<HTMLElement>(".rank-track i")) {
+					bar.style.width = `${bar.dataset.width}%`;
+				}
+			});
+		});
 	}
 
-	function renderAi(ai: Overview["ai"]) {
-		const stats = $("admin-ai-stats");
-		if (stats) {
-			const rows = [
-				["累计提问", `${ai.total} 次`],
-				["今日提问", `${ai.today} 次`],
-				["平均响应（近 7 天）", ai.avgMs ? `${(ai.avgMs / 1000).toFixed(1)} 秒` : "—"],
-				["累计 tokens", ai.tokens ? ai.tokens.toLocaleString() : "0"],
+	function renderAi(data: Overview) {
+		const ring = $("#ring") as unknown as SVGCircleElement | null;
+		const ringValue = $("#ring-value");
+		const circumference = 2 * Math.PI * 52;
+		if (ring) {
+			ring.style.strokeDasharray = String(circumference);
+			ring.style.strokeDashoffset = String(circumference * (1 - data.ai.successRate / 100));
+		}
+		if (ringValue) ringValue.textContent = `${data.ai.successRate}%`;
+
+		const facts = $("#ai-facts");
+		if (facts) {
+			const rows: [string, string][] = [
+				["累计提问", `${fmtNum(data.ai.total)} 次`],
+				["今日提问", `${fmtNum(data.ai.today)} 次`],
+				["平均响应", data.ai.avgMs ? `${(data.ai.avgMs / 1000).toFixed(1)} 秒` : "—"],
+				["累计 tokens", fmtNum(data.ai.tokens)],
 			];
-			stats.innerHTML = rows
-				.map(
-					([label, value]) =>
-						`<div class="flex items-center justify-between px-2 py-1.5 rounded" style="background: var(--btn-plain-bg-hover)">
-							<span>${label}</span><span class="font-bold" style="color: var(--primary)">${value}</span>
-						</div>`,
-				)
-				.join("");
-			if (ai.models.length > 0) {
-				stats.innerHTML += `<div class="pt-2 text-xs text-75">实际调用的模型：${ai.models
-					.map((m) => `${m.model}（${m.count}）`)
-					.join("、")}</div>`;
-			}
+			facts.innerHTML = rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
 		}
 
-		const recent = $("admin-ai-recent");
-		if (!recent) return;
-		recent.innerHTML = "";
-		if (ai.recent.length === 0) {
-			recent.innerHTML = `<p class="text-75 text-xs">还没有人问过</p>`;
-			return;
-		}
-		for (const item of ai.recent) {
-			const row = document.createElement("div");
-			row.className = "px-2 py-1.5 rounded";
-			row.style.background = "var(--btn-plain-bg-hover)";
-			row.innerHTML = `
-				<div class="flex items-center justify-between gap-2 text-xs text-75 mb-0.5">
-					<span>${fmtTime(item.ts)}</span>
-					<span>${item.ms ? (item.ms / 1000).toFixed(1) + "s" : ""}${item.ok ? "" : " · 失败"}</span>
-				</div>
-				<div class="text-sm break-words">${item.question.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] ?? c)}</div>
-			`;
-			recent.appendChild(row);
+		const models = $("#models");
+		if (models) {
+			models.innerHTML =
+				data.ai.models.length === 0
+					? ""
+					: data.ai.models.map((m) => `<span class="model-chip"><b>${m.model}</b><span>${m.count} 次</span></span>`).join("");
 		}
 	}
 
-	async function renderPostStats() {
-		const kpis = $("admin-kpis");
-		if (!kpis) return null;
+	function renderLog(data: Overview) {
+		const box = $("#log");
+		if (!box) return;
+		if (data.ai.recent.length === 0) {
+			box.innerHTML = `<li class="empty" style="display:block;border:0">还没有人问过</li>`;
+			return;
+		}
+		box.innerHTML = data.ai.recent
+			.map((item, index) => {
+				const date = new Date(item.ts);
+				const time = `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+				const meta = `${item.ms ? (item.ms / 1000).toFixed(1) + "s" : ""}${item.ok ? "" : " · 失败"}`;
+				return `<li style="animation-delay:${(index + 1) * 35}ms">
+					<span class="log-time">${time}</span>
+					<span class="log-q">${item.question.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] ?? c)}</span>
+					<span class="log-meta ${item.ok ? "" : "bad"}">${meta}</span>
+				</li>`;
+			})
+			.join("");
+	}
+
+	async function loadTitles() {
 		try {
 			const response = await fetch("/post-index.json");
-			const posts = (await response.json()) as PostMeta[];
-			const tags = new Set<string>();
-			const categories = new Set<string>();
-			for (const post of posts) {
-				for (const tag of post.tags ?? []) tags.add(tag);
-				if (post.category) categories.add(post.category);
-			}
-			return { posts: posts.length, tags: tags.size, categories: categories.size };
+			postsCache = (await response.json()) as PostMeta[];
+			titles = new Map(postsCache.map((post) => [post.url, post.title]));
 		} catch {
-			return { posts: 0, tags: 0, categories: 0 };
+			postsCache = [];
 		}
+	}
+
+	function showConsole(show: boolean) {
+		const gate = $("#gate");
+		const panel = $("#console");
+		if (gate) gate.hidden = show;
+		if (panel) panel.hidden = !show;
 	}
 
 	async function load() {
-		hide("admin-login");
-		show("admin-loading");
-
 		let response: Response;
 		try {
-			response = await fetch("/api/admin/overview", { headers: { accept: "application/json" } });
+			response = await fetch(`/api/admin/overview?range=${range}`, { headers: { accept: "application/json" } });
 		} catch {
-			hide("admin-loading");
-			show("admin-login");
+			showConsole(false);
 			return;
 		}
-
 		if (response.status === 401) {
-			hide("admin-loading");
-			hide("admin-dashboard");
-			show("admin-login");
+			showConsole(false);
 			return;
 		}
 
 		const data = (await response.json().catch(() => null)) as Overview | null;
 		if (!data) {
-			hide("admin-loading");
-			show("admin-login");
+			showConsole(false);
 			return;
 		}
 
-		const postStats = await renderPostStats();
-		const kpis = $("admin-kpis");
-		if (kpis) {
-			kpis.innerHTML = "";
-			kpis.appendChild(kpiCard("文章", String(postStats?.posts ?? 0)));
-			kpis.appendChild(kpiCard("标签", String(postStats?.tags ?? 0)));
-			kpis.appendChild(kpiCard("分类", String(postStats?.categories ?? 0)));
-			kpis.appendChild(kpiCard("今日阅读", String(data.views.today)));
-			kpis.appendChild(kpiCard("累计阅读", String(data.views.total)));
-			kpis.appendChild(kpiCard("AI 提问", String(data.ai.total), `今日 ${data.ai.today} 次`));
-			kpis.appendChild(kpiCard("AI 平均响应", data.ai.avgMs ? `${(data.ai.avgMs / 1000).toFixed(1)}s` : "—"));
-			kpis.appendChild(kpiCard("AI tokens", data.ai.tokens.toLocaleString()));
+		showConsole(true);
+		renderLedger(data);
+		renderTrend(data);
+		renderRanking(data);
+		renderAi(data);
+		renderLog(data);
+
+		const stamp = $("#stamp");
+		if (stamp) {
+			const now = new Date();
+			stamp.textContent = `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} · GMT+8`;
 		}
-
-		renderTrend(data.views.series);
-		renderTopPages(data.views.top);
-		renderAi(data.ai);
-
-		const updated = $("admin-updated");
-		if (updated) updated.textContent = `数据更新于 ${new Date(data.generatedAt).toLocaleString("zh-CN")} · 统计时区 GMT+8`;
-
-		hide("admin-loading");
-		show("admin-dashboard");
 	}
 
-	$("admin-login-form")?.addEventListener("submit", async (event) => {
+	for (const button of document.querySelectorAll<HTMLButtonElement>(".seg button")) {
+		button.addEventListener("click", () => {
+			range = Number(button.dataset.range ?? 14);
+			for (const other of document.querySelectorAll(".seg button")) other.classList.toggle("is-active", other === button);
+			void load();
+		});
+	}
+
+	$("#refresh")?.addEventListener("click", () => void load());
+
+	$("#logout")?.addEventListener("click", async () => {
+		await fetch("/api/admin/logout", { method: "POST" });
+		showConsole(false);
+	});
+
+	$("#login-form")?.addEventListener("submit", async (event) => {
 		event.preventDefault();
-		const input = $("admin-password") as HTMLInputElement | null;
-		const error = $("admin-login-error");
-		error?.classList.add("hidden");
-		const password = input?.value ?? "";
+		const input = $("#password") as HTMLInputElement | null;
+		const error = $("#login-error");
+		if (error) error.hidden = true;
 		const response = await fetch("/api/admin/login", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ password }),
+			body: JSON.stringify({ password: input?.value ?? "" }),
 		});
 		if (!response.ok) {
-			const data = await response.json().catch(() => ({}));
+			const body = (await response.json().catch(() => ({}))) as { error?: string };
 			if (error) {
-				error.textContent = (data as { error?: string }).error ?? "密码不对";
-				error.classList.remove("hidden");
+				error.textContent = body.error ?? "密码不对";
+				error.hidden = false;
 			}
 			return;
 		}
@@ -301,11 +1071,8 @@ import MainGridLayout from "@layouts/MainGridLayout.astro";
 		await load();
 	});
 
-	$("admin-logout")?.addEventListener("click", async () => {
-		await fetch("/api/admin/logout", { method: "POST" });
-		hide("admin-dashboard");
-		show("admin-login");
-	});
-
-	void load();
+	void (async () => {
+		await loadTitles();
+		await load();
+	})();
 </script>
