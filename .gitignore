@@ -50,3 +50,10 @@ yarn.lock
 
 .shot-*.png
 
+
+# 本地调试产物
+.probe*.mjs
+.dev*.log
+.seed.sql
+.chrome-prof/
+

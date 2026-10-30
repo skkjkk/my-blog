@@ -95,13 +95,23 @@ if (PASSWORD) {
 await sleep(2200);
 const info = await c.send("Runtime.evaluate", {
   expression: `(() => {
-    const items = Array.from(document.querySelectorAll('.ledger-item')).map(d => d.textContent.replace(/\\s+/g,' ').trim());
+    const txt = (sel) => Array.from(document.querySelectorAll(sel)).map(d => d.textContent.replace(/\\s+/g,' ').trim());
+    const svgCount = (sel) => document.querySelector(sel)?.children.length ?? -1;
     return JSON.stringify({
-      ledger: items,
+      kpis: txt('.kpi').slice(0, 3),
+      kpiCount: document.querySelectorAll('.kpi').length,
+      cards: document.querySelectorAll('.card').length,
+      comboNodes: svgCount('#combo'),
+      gaugeNodes: svgCount('#gauge'),
+      roseSlices: svgCount('#rose'),
+      calCells: document.querySelectorAll('#calendar .cal').length,
+      ringArcs: svgCount('#rings'),
+      donutArcs: svgCount('#donut'),
+      scatterNodes: svgCount('#scatter'),
       rankRows: document.querySelectorAll('#ranking li').length,
       logRows: document.querySelectorAll('#log li').length,
-      ring: document.getElementById('ring-value')?.textContent,
-      stamp: document.getElementById('stamp')?.textContent,
+      notes: txt('.card-note'),
+      overflowX: document.documentElement.scrollWidth > window.innerWidth ? document.documentElement.scrollWidth : 'none',
     });
   })()`,
   returnByValue: true,

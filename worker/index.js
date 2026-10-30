@@ -354,7 +354,7 @@ async function handleOverview(request, env) {
 		env.DB.prepare("SELECT COALESCE(SUM(count), 0) AS v FROM views WHERE day = ?").bind(yesterdayStr),
 		env.DB.prepare("SELECT day, SUM(count) AS v FROM views WHERE day >= ? GROUP BY day ORDER BY day").bind(fromStr),
 		env.DB.prepare(
-			"SELECT path, SUM(count) AS v FROM views WHERE day >= ? GROUP BY path ORDER BY v DESC LIMIT 8",
+			"SELECT path, SUM(count) AS v FROM views WHERE day >= ? GROUP BY path ORDER BY v DESC LIMIT 60",
 		).bind(fromStr),
 		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log"),
 		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log WHERE day = ?").bind(todayStr),
@@ -377,8 +377,9 @@ async function handleOverview(request, env) {
 	let aiZeroHits = 0;
 	let aiAvgHits = 0;
 	let aiTopPaths = [];
+	let calendar = [];
 	try {
-		const [hourRows, searchRows, searchTotalRow, hitsRow, hitPathRows] = await env.DB.batch([
+		const [hourRows, searchRows, searchTotalRow, hitsRow, hitPathRows, calendarRows] = await env.DB.batch([
 			env.DB.prepare("SELECT hour, SUM(count) AS v FROM views_hourly WHERE day >= ? GROUP BY hour ORDER BY hour").bind(fromStr),
 			env.DB.prepare(
 				"SELECT keyword, COUNT(*) AS v FROM search_log WHERE day >= ? GROUP BY keyword ORDER BY v DESC LIMIT 10",
@@ -388,9 +389,12 @@ async function handleOverview(request, env) {
 				"SELECT COUNT(*) AS n, COALESCE(SUM(hits), 0) AS sum, COALESCE(SUM(CASE WHEN hits = 0 THEN 1 ELSE 0 END), 0) AS zero FROM ai_hits WHERE day >= ?",
 			).bind(fromStr),
 			env.DB.prepare("SELECT paths FROM ai_hits WHERE day >= ? ORDER BY id DESC LIMIT 500").bind(fromStr),
+			// 日历热力图用：最近 20 周每天的阅读量（不受时间范围影响）
+			env.DB.prepare("SELECT day, SUM(count) AS v FROM views WHERE day >= ? GROUP BY day ORDER BY day").bind(daysAgo(139)),
 		]);
 
 		hours = (hourRows?.results ?? []).map((row) => ({ hour: row.hour, count: row.v }));
+		calendar = (calendarRows?.results ?? []).map((row) => ({ day: row.day, count: row.v }));
 		searchTop = (searchRows?.results ?? []).map((row) => ({ keyword: row.keyword, count: row.v }));
 		searchTotal = searchTotalRow?.results?.[0]?.v ?? 0;
 
@@ -424,6 +428,7 @@ async function handleOverview(request, env) {
 			series: (series?.results ?? []).map((row) => ({ day: row.day, count: row.v })),
 			top: (topPages?.results ?? []).map((row) => ({ path: row.path, count: row.v })),
 			hours,
+			calendar,
 			search: { total: searchTotal, top: searchTop },
 		},
 		ai: {

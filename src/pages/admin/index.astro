@@ -1,547 +1,789 @@
 ---
-import "@fontsource-variable/jetbrains-mono";
+// 和博客共用同一套色板变量（--primary / --card-bg / --page-bg ...），保证后台与前台一致
+import "../../styles/variables.styl";
 import Layout from "@layouts/Layout.astro";
 ---
 
 <Layout title="数据台">
 	<main class="dash" id="dash">
-		<!-- 登录 -->
+		<!-- ================= 登录 ================= -->
 		<section class="gate" id="gate" hidden>
-			<div class="gate-inner">
-				<p class="kicker">WKB / 数据台</p>
-				<h1 class="gate-title">只给博主自己看</h1>
-				<p class="gate-sub">输入后台密码。数据不会对任何访客公开。</p>
+			<div class="gate-card">
+				<span class="gate-lock" aria-hidden="true">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+						<rect x="4" y="10.5" width="16" height="9.5" rx="3"></rect>
+						<path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"></path>
+					</svg>
+				</span>
+				<h1>数据台</h1>
+				<p>只给博主自己看。输密码进入，数据不对任何访客公开。</p>
 				<form id="login-form" class="gate-form">
 					<input id="password" type="password" placeholder="后台密码" autocomplete="current-password" />
 					<button type="submit">进入</button>
 				</form>
 				<p class="gate-error" id="login-error" hidden></p>
+				<a class="gate-back" href="/">← 回博客</a>
 			</div>
 		</section>
 
-		<!-- 数据台 -->
+		<!-- ================= 数据台 ================= -->
 		<div id="console" hidden>
-			<header class="masthead">
-				<div class="masthead-left">
-					<p class="kicker">WKB · 数据台</p>
-					<h1 class="masthead-title">博客编辑部</h1>
-				</div>
-				<div class="masthead-right">
-					<p class="stamp" id="stamp">——</p>
-					<div class="controls">
-						<a class="ghost" href="/">← 回博客</a>
-						<div class="seg" role="group" aria-label="时间范围">
-							<button type="button" data-range="7">7 天</button>
-							<button type="button" data-range="14" class="is-active">14 天</button>
-							<button type="button" data-range="30">30 天</button>
-						</div>
-						<button type="button" class="ghost" id="refresh">刷新</button>
-						<button type="button" class="ghost" id="logout">退出</button>
+			<header class="topbar">
+				<div class="brand">
+					<span class="brand-mark">W</span>
+					<div class="brand-text">
+						<h1>数据台</h1>
+						<p id="stamp">读取中…</p>
 					</div>
+				</div>
+				<div class="toolbar">
+					<div class="seg" role="group" aria-label="时间范围">
+						<button type="button" data-range="7">7 天</button>
+						<button type="button" data-range="14" class="is-active">14 天</button>
+						<button type="button" data-range="30">30 天</button>
+					</div>
+					<button type="button" class="btn" id="refresh">刷新</button>
+					<a class="btn" href="/">回博客</a>
+					<button type="button" class="btn" id="logout">退出</button>
 				</div>
 			</header>
 
-			<div class="rule"></div>
+			<!-- 关键指标 -->
+			<section class="kpi-grid" id="kpis"></section>
 
-			<!-- 数字条 -->
-			<section class="ledger" id="ledger"></section>
-
-			<div class="rule"></div>
-
-			<!-- 趋势 -->
-			<section class="block trend-block">
-				<div class="block-head">
-					<h2>阅读趋势</h2>
-					<p class="block-note" id="trend-note"></p>
-				</div>
-				<div class="chart-wrap">
-					<svg id="trend" class="chart" viewBox="0 0 800 260" preserveAspectRatio="none" aria-label="阅读趋势"></svg>
-				</div>
-				<div class="chart-axis" id="trend-axis"></div>
-			</section>
-
-			<div class="rule"></div>
-
-			<div class="split">
-				<!-- 热门 -->
-				<section class="block">
-					<div class="block-head">
-						<h2>热门页面</h2>
-						<p class="block-note">按阅读次数</p>
+			<div class="grid">
+				<!-- 组合图 -->
+				<section class="card span-8">
+					<div class="card-head">
+						<h2>阅读与提问</h2>
+						<p class="card-note" id="combo-note"></p>
 					</div>
-					<ol class="ranking" id="ranking"></ol>
+					<div class="legend">
+						<span><i style="background: var(--c1)"></i>阅读次数</span>
+						<span><i style="background: var(--alt)"></i>AI 提问</span>
+					</div>
+					<svg id="combo" class="chart" role="img" aria-label="每日阅读与提问"></svg>
 				</section>
 
-				<!-- AI -->
-				<section class="block">
-					<div class="block-head">
+				<!-- 半环仪表 -->
+				<section class="card span-4">
+					<div class="card-head">
 						<h2>AI 助手</h2>
-						<p class="block-note">站内问答的使用情况</p>
+						<p class="card-note">回答成功率</p>
 					</div>
-					<div class="ai-panel">
-						<div class="ring-wrap">
-							<svg class="ring" viewBox="0 0 120 120" aria-label="成功率">
-								<circle class="ring-track" cx="60" cy="60" r="52"></circle>
-								<circle class="ring-value" id="ring" cx="60" cy="60" r="52"></circle>
-							</svg>
-							<div class="ring-label">
-								<strong id="ring-value">—</strong>
-								<span>成功率</span>
-							</div>
-						</div>
-						<dl class="ai-facts" id="ai-facts"></dl>
-					</div>
-					<div class="models" id="models"></div>
+					<svg id="gauge" class="chart" role="img" aria-label="AI 成功率"></svg>
+					<dl class="facts" id="ai-facts"></dl>
+					<div class="chips" id="models"></div>
 				</section>
-			</div>
 
-			<div class="rule"></div>
+				<!-- 玫瑰图 -->
+				<section class="card span-4 col">
+					<div class="card-head">
+						<h2>读者什么时候来</h2>
+						<p class="card-note" id="rose-note">按小时分布</p>
+					</div>
+					<svg id="rose" class="chart rose" viewBox="0 0 260 260" role="img" aria-label="24 小时访问分布"></svg>
+				</section>
 
-			<!-- 访问时段 -->
-			<section class="block">
-				<div class="block-head">
-					<h2>读者什么时候来</h2>
-					<p class="block-note" id="hours-note">按小时分布</p>
-				</div>
-				<div class="heat" id="hours"></div>
-				<div class="heat-axis">
-					<span>0</span><span>6</span><span>12</span><span>18</span><span>23</span>
-				</div>
-			</section>
+				<!-- 日历热力图 -->
+				<section class="card span-8">
+					<div class="card-head">
+						<h2>阅读热度日历</h2>
+						<p class="card-note" id="cal-note"></p>
+					</div>
+					<div class="cal-board" id="calendar"></div>
+					<div class="cal-legend">
+						<span>少</span>
+						<i class="cal lv0"></i><i class="cal lv1"></i><i class="cal lv2"></i><i class="cal lv3"></i><i class="cal lv4"></i>
+						<span>多</span>
+					</div>
+				</section>
 
-			<div class="rule"></div>
+				<!-- 同心环：参与度 -->
+				<section class="card span-4">
+					<div class="card-head">
+						<h2>读者走到哪一步</h2>
+						<p class="card-note">相对阅读次数的比例</p>
+					</div>
+					<svg id="rings" class="chart rings" viewBox="0 0 200 200" role="img" aria-label="读者参与度"></svg>
+					<ul class="ring-legend" id="ring-legend"></ul>
+				</section>
 
-			<div class="split">
+				<!-- 环形图 -->
+				<section class="card span-4">
+					<div class="card-head">
+						<h2>标签分布</h2>
+						<p class="card-note" id="tags-note"></p>
+					</div>
+					<div class="donut-wrap">
+						<svg id="donut" class="donut" viewBox="0 0 180 180" role="img" aria-label="标签占比"></svg>
+						<ul class="donut-legend" id="donut-legend"></ul>
+					</div>
+				</section>
+
+				<!-- 散点图 -->
+				<section class="card span-4">
+					<div class="card-head">
+						<h2>长的文章有人看吗</h2>
+						<p class="card-note">字数 × 阅读次数</p>
+					</div>
+					<svg id="scatter" class="chart" role="img" aria-label="字数与阅读量"></svg>
+				</section>
+
+				<!-- 热门页面 -->
+				<section class="card span-6">
+					<div class="card-head">
+						<h2>热门页面</h2>
+						<p class="card-note">按阅读次数</p>
+					</div>
+					<ol class="rank" id="ranking"></ol>
+				</section>
+
+				<!-- 搜索词 -->
+				<section class="card span-6">
+					<div class="card-head">
+						<h2>读者在搜什么</h2>
+						<p class="card-note" id="search-note"></p>
+					</div>
+					<ol class="rank" id="searches"></ol>
+				</section>
+
 				<!-- 写作节奏 -->
-				<section class="block">
-					<div class="block-head">
+				<section class="card span-6">
+					<div class="card-head">
 						<h2>写作节奏</h2>
-						<p class="block-note" id="rhythm-note"></p>
+						<p class="card-note" id="rhythm-note"></p>
 					</div>
 					<div class="months" id="months"></div>
-					<dl class="content-facts" id="content-facts"></dl>
-				</section>
-
-				<!-- 标签 -->
-				<section class="block">
-					<div class="block-head">
-						<h2>标签分布</h2>
-						<p class="block-note" id="tags-note"></p>
-					</div>
-					<div class="tagbars" id="tags"></div>
-				</section>
-			</div>
-
-			<div class="rule"></div>
-
-			<div class="split">
-				<!-- 站内搜索 -->
-				<section class="block">
-					<div class="block-head">
-						<h2>读者在搜什么</h2>
-						<p class="block-note" id="search-note"></p>
-					</div>
-					<ol class="ranking compact" id="searches"></ol>
+					<dl class="facts two" id="content-facts"></dl>
 				</section>
 
 				<!-- 被问最多的文章 -->
-				<section class="block">
-					<div class="block-head">
+				<section class="card span-6">
+					<div class="card-head">
 						<h2>最让人困惑的文章</h2>
-						<p class="block-note">AI 检索命中最多的文章</p>
+						<p class="card-note">AI 检索命中最多的文章</p>
 					</div>
-					<ol class="ranking compact" id="ai-paths"></ol>
+					<ol class="rank" id="ai-paths"></ol>
+				</section>
+
+				<!-- 提问记录 -->
+				<section class="card span-12">
+					<div class="card-head">
+						<h2>最近的提问</h2>
+						<p class="card-note">访客都问了什么</p>
+					</div>
+					<ul class="log" id="log"></ul>
 				</section>
 			</div>
 
-			<div class="rule"></div>
-
-			<!-- 提问记录 -->
-			<section class="block">
-				<div class="block-head">
-					<h2>最近的提问</h2>
-					<p class="block-note">访客都问了什么</p>
-				</div>
-				<ul class="log" id="log"></ul>
-			</section>
-
 			<footer class="foot">
-				<span id="foot-note">统计时区 GMT+8 · 不记录访客 IP</span>
+				<span>统计时区 GMT+8 · 不记录访客 IP · 数据仅博主可见</span>
 			</footer>
 		</div>
 	</main>
 </Layout>
 
 <style is:global>
+	/* 后台不需要浮窗 AI 助手 */
 	#ai-chat {
 		display: none !important;
 	}
 
+	/* ---------- 与博客同一套配色 ---------- */
 	.dash {
-		--paper: #f4f2ec;
-		--ink: #17170f;
-		--ink-soft: #5f5d51;
-		--ink-faint: #918d7d;
-		--hair: #dcd7c9;
-		--accent: #b23a1f;
-		--accent-soft: rgba(178, 58, 31, 0.085);
-		--leaf: #35564a;
-		--mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
-		--serif: "Songti SC", "Noto Serif SC", "Source Han Serif SC", "SimSun", Georgia, serif;
-		--sans: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, sans-serif;
+		--ink-1: oklch(0.26 0.02 var(--hue));
+		--ink-2: oklch(0.45 0.02 var(--hue));
+		--ink-3: oklch(0.62 0.015 var(--hue));
+		--line: oklch(0.9 0.012 var(--hue));
+		--line-soft: oklch(0.945 0.008 var(--hue));
+		--field: var(--btn-regular-bg);
+		--card: var(--card-bg);
+
+		--c1: oklch(0.64 0.15 var(--hue));
+		--c2: oklch(0.73 0.12 var(--hue));
+		--c3: oklch(0.81 0.08 var(--hue));
+		--c4: oklch(0.67 0.1 calc(var(--hue) + 45));
+		--c5: oklch(0.77 0.07 calc(var(--hue) + 45));
+		--c6: oklch(0.87 0.045 var(--hue));
+		--alt: oklch(0.7 0.14 42);
+		--grid: oklch(0.92 0.008 var(--hue));
+		--up: oklch(0.62 0.13 155);
+		--down: oklch(0.6 0.17 22);
 
 		min-height: 100vh;
-		padding: 0 1.25rem 4rem;
-		background-color: var(--paper);
-		background-image: radial-gradient(circle at 12% -10%, rgba(178, 58, 31, 0.06), transparent 45%),
-			radial-gradient(circle at 92% 4%, rgba(53, 86, 74, 0.07), transparent 40%);
-		color: var(--ink);
-		font-family: var(--sans);
+		padding: 1.1rem 1rem 3.5rem;
+		color: var(--ink-1);
+		font-family: "Roboto", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, sans-serif;
 		-webkit-font-smoothing: antialiased;
 	}
 	html.dark .dash {
-		--paper: #121210;
-		--ink: #ece8dd;
-		--ink-soft: #a5a094;
-		--ink-faint: #726d62;
-		--hair: #2b2a25;
-		--accent: #e4654a;
-		--accent-soft: rgba(228, 101, 74, 0.14);
-		--leaf: #7fa595;
-		background-image: radial-gradient(circle at 10% -8%, rgba(228, 101, 74, 0.1), transparent 45%),
-			radial-gradient(circle at 94% 2%, rgba(127, 165, 149, 0.08), transparent 40%);
+		--ink-1: oklch(0.94 0.008 var(--hue));
+		--ink-2: oklch(0.79 0.012 var(--hue));
+		--ink-3: oklch(0.63 0.014 var(--hue));
+		--line: oklch(0.31 0.015 var(--hue));
+		--line-soft: oklch(0.255 0.012 var(--hue));
+
+		--c1: oklch(0.78 0.13 var(--hue));
+		--c2: oklch(0.68 0.13 var(--hue));
+		--c3: oklch(0.57 0.1 var(--hue));
+		--c4: oklch(0.74 0.1 calc(var(--hue) + 45));
+		--c5: oklch(0.62 0.08 calc(var(--hue) + 45));
+		--c6: oklch(0.48 0.06 var(--hue));
+		--alt: oklch(0.78 0.13 42);
+		--grid: oklch(0.29 0.012 var(--hue));
+		--up: oklch(0.78 0.14 155);
+		--down: oklch(0.74 0.16 22);
 	}
 
-	.dash * {
+	.dash *,
+	.dash *::before,
+	.dash *::after {
 		box-sizing: border-box;
 	}
 
-	/* hidden 属性要压过 display:grid/flex，否则登录页和数据台会同时出现 */
+	/* hidden 要压过 display:grid，否则登录页和数据台会同时出现 */
 	.dash [hidden] {
 		display: none !important;
 	}
 
-	.kicker {
+	.dash h1,
+	.dash h2,
+	.dash p,
+	.dash dl,
+	.dash dd,
+	.dash dt,
+	.dash ol,
+	.dash ul,
+	.dash li {
 		margin: 0;
-		font-family: var(--mono);
-		font-size: 0.62rem;
-		letter-spacing: 0.24em;
-		text-transform: uppercase;
-		color: var(--ink-faint);
+		padding: 0;
 	}
 
 	/* ---------- 登录 ---------- */
 	.gate {
-		min-height: 100vh;
+		min-height: calc(100vh - 3rem);
 		display: grid;
 		place-items: center;
 	}
-	.gate-inner {
-		width: min(24rem, 100%);
+	.gate-card {
+		width: min(23rem, 100%);
+		background: var(--card);
+		border-radius: var(--radius-large);
+		padding: 2.2rem 1.6rem 1.8rem;
 		text-align: center;
+		box-shadow: 0 10px 30px -18px rgba(0, 0, 0, 0.28);
 	}
-	.gate-title {
-		margin: 1.2rem 0 0.6rem;
-		font-family: var(--serif);
-		font-size: 2rem;
-		font-weight: 600;
+	html.dark .gate-card {
+		box-shadow: none;
+		border: 1px solid var(--line);
+	}
+	.gate-lock {
+		display: grid;
+		place-items: center;
+		width: 2.6rem;
+		height: 2.6rem;
+		margin: 0 auto 1rem;
+		border-radius: 0.9rem;
+		background: var(--field);
+		color: var(--btn-content);
+	}
+	.gate-lock svg {
+		width: 1.25rem;
+		height: 1.25rem;
+	}
+	.gate-card h1 {
+		font-size: 1.3rem;
+		font-weight: 700;
 		letter-spacing: 0.02em;
 	}
-	.gate-sub {
-		margin: 0 0 2rem;
-		font-size: 0.82rem;
-		line-height: 1.7;
-		color: var(--ink-soft);
+	.gate-card > p {
+		margin-top: 0.5rem;
+		font-size: 0.78rem;
+		line-height: 1.75;
+		color: var(--ink-3);
 	}
 	.gate-form {
 		display: flex;
 		gap: 0.5rem;
-		border-bottom: 1px solid var(--hair);
-		padding-bottom: 0.6rem;
+		margin-top: 1.4rem;
 	}
 	.gate-form input {
 		flex: 1;
 		min-width: 0;
-		background: transparent;
-		border: 0;
+		background: var(--field);
+		border: 1px solid transparent;
+		border-radius: 0.7rem;
+		padding: 0.62rem 0.8rem;
+		font-size: 0.9rem;
+		letter-spacing: 0.08em;
+		color: var(--ink-1);
 		outline: none;
-		font-family: var(--mono);
-		font-size: 0.95rem;
-		letter-spacing: 0.12em;
-		color: var(--ink);
-		padding: 0.4rem 0;
+		transition: border-color 0.18s ease;
+	}
+	.gate-form input:focus {
+		border-color: var(--primary);
 	}
 	.gate-form input::placeholder {
-		color: var(--ink-faint);
-		letter-spacing: 0.04em;
+		color: var(--ink-3);
+		letter-spacing: 0.02em;
 	}
 	.gate-form button {
+		flex: none;
 		border: 0;
-		background: var(--ink);
-		color: var(--paper);
-		font-size: 0.8rem;
-		letter-spacing: 0.12em;
-		padding: 0.5rem 1.1rem;
+		border-radius: 0.7rem;
+		padding: 0.62rem 1.15rem;
+		background: var(--primary);
+		color: oklch(0.99 0 0);
+		font-size: 0.85rem;
+		font-weight: 500;
 		cursor: pointer;
-		transition: background 0.2s ease;
+		transition: filter 0.18s ease;
 	}
 	.gate-form button:hover {
-		background: var(--accent);
+		filter: brightness(1.06);
 	}
 	.gate-error {
-		margin: 1rem 0 0;
-		font-size: 0.8rem;
-		color: var(--accent);
+		margin-top: 0.9rem !important;
+		font-size: 0.78rem !important;
+		color: var(--down) !important;
+	}
+	.gate-back {
+		display: inline-block;
+		margin-top: 1.5rem;
+		font-size: 0.75rem;
+		color: var(--ink-3);
+		text-decoration: none;
+		transition: color 0.18s ease;
+	}
+	.gate-back:hover {
+		color: var(--primary);
 	}
 
-	/* ---------- 刊头 ---------- */
-	.masthead {
-		max-width: 78rem;
+	/* ---------- 顶栏 ---------- */
+	#console {
+		max-width: 76rem;
 		margin: 0 auto;
-		padding: 2.4rem 0 1.2rem;
+	}
+	.topbar {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: flex-end;
+		align-items: center;
 		justify-content: space-between;
-		gap: 1.2rem;
+		gap: 0.75rem;
+		margin-bottom: 0.9rem;
 	}
-	.masthead-title {
-		margin: 0.5rem 0 0;
-		font-family: var(--serif);
-		font-size: clamp(1.9rem, 5vw, 2.9rem);
-		font-weight: 600;
-		letter-spacing: 0.03em;
-		line-height: 1.05;
-	}
-	.masthead-right {
-		text-align: right;
-	}
-	.stamp {
-		margin: 0 0 0.9rem;
-		font-family: var(--mono);
-		font-size: 0.7rem;
-		letter-spacing: 0.1em;
-		color: var(--ink-faint);
-	}
-	.controls {
+	.brand {
 		display: flex;
 		align-items: center;
-		justify-content: flex-end;
+		gap: 0.6rem;
+	}
+	.brand-mark {
+		display: grid;
+		place-items: center;
+		width: 2.3rem;
+		height: 2.3rem;
+		border-radius: 0.75rem;
+		background: var(--field);
+		color: var(--btn-content);
+		font-weight: 700;
+		font-size: 1rem;
+	}
+	.brand-text h1 {
+		font-size: 1.05rem;
+		font-weight: 700;
+		line-height: 1.2;
+	}
+	.brand-text p {
+		margin-top: 0.15rem;
+		font-size: 0.68rem;
+		color: var(--ink-3);
+		font-variant-numeric: tabular-nums;
+	}
+	.toolbar {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
 		flex-wrap: wrap;
-		gap: 0.5rem;
 	}
 	.seg {
 		display: inline-flex;
-		border: 1px solid var(--hair);
+		padding: 0.15rem;
+		border-radius: 0.65rem;
+		background: var(--field);
 	}
 	.seg button {
 		border: 0;
 		background: transparent;
-		color: var(--ink-soft);
-		font-family: var(--mono);
-		font-size: 0.68rem;
-		letter-spacing: 0.08em;
-		padding: 0.42rem 0.7rem;
+		color: var(--ink-2);
+		font-family: inherit;
+		font-size: 0.74rem;
+		padding: 0.32rem 0.62rem;
+		border-radius: 0.5rem;
 		cursor: pointer;
-		transition: all 0.18s ease;
-	}
-	.seg button + button {
-		border-left: 1px solid var(--hair);
+		transition: all 0.16s ease;
 	}
 	.seg button:hover {
-		color: var(--ink);
+		color: var(--ink-1);
 	}
 	.seg button.is-active {
-		background: var(--ink);
-		color: var(--paper);
+		background: var(--card);
+		color: var(--primary);
+		font-weight: 500;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
 	}
-	.ghost {
+	html.dark .seg button.is-active {
+		box-shadow: none;
+		background: var(--btn-regular-bg-hover);
+	}
+	.btn {
 		display: inline-flex;
 		align-items: center;
+		border: 0;
+		background: var(--field);
+		color: var(--ink-2);
+		font-family: inherit;
+		font-size: 0.74rem;
+		padding: 0.42rem 0.72rem;
+		border-radius: 0.6rem;
 		text-decoration: none;
-		border: 1px solid var(--hair);
-		background: transparent;
-		color: var(--ink-soft);
-		font-size: 0.7rem;
-		letter-spacing: 0.1em;
-		padding: 0.42rem 0.8rem;
 		cursor: pointer;
-		transition: all 0.18s ease;
+		transition: all 0.16s ease;
 	}
-	.ghost:hover {
-		color: var(--ink);
-		border-color: var(--ink);
-	}
-	.rule {
-		max-width: 78rem;
-		margin: 0 auto;
-		height: 1px;
-		background: var(--hair);
-	}
-	.masthead + .rule {
-		height: 3px;
-		border-top: 1px solid var(--hair);
-		border-bottom: 1px solid var(--hair);
-		background: transparent;
+	.btn:hover {
+		background: var(--btn-regular-bg-hover);
+		color: var(--ink-1);
 	}
 
-	/* ---------- 数字条 ---------- */
-	.ledger {
-		max-width: 78rem;
-		margin: 0 auto;
+	/* ---------- 卡片 ---------- */
+	.card {
+		grid-column: 1 / -1;
+		background: var(--card);
+		border-radius: var(--radius-large);
+		padding: 1rem 1.05rem 1.1rem;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02), 0 10px 26px -22px rgba(0, 0, 0, 0.3);
+		min-width: 0;
+		animation: rise 0.45s cubic-bezier(0.22, 0.68, 0.28, 1) both;
+	}
+	html.dark .card {
+		box-shadow: none;
+		background: var(--card-bg);
+	}
+	/* 手机先按单列排，宽屏再切成 12 栅格 */
+	.grid {
 		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
-		border-bottom: 1px solid var(--hair);
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.85rem;
+		margin-top: 0.85rem;
 	}
-	.ledger-item {
-		padding: 1.35rem 1.1rem 1.2rem;
-		border-right: 1px solid var(--hair);
-		animation: rise 0.5s cubic-bezier(0.22, 0.68, 0.28, 1) both;
-	}
-	.ledger-item:nth-child(4n) {
-		border-right: 0;
-	}
-	.ledger-item:nth-child(n + 5) {
-		border-top: 1px solid var(--hair);
-	}
-	.ledger-label {
-		margin: 0 0 0.55rem;
-		font-family: var(--mono);
-		font-size: 0.62rem;
-		letter-spacing: 0.14em;
-		text-transform: uppercase;
-		color: var(--ink-faint);
-	}
-	.ledger-value {
+	.card-head {
 		display: flex;
 		align-items: baseline;
-		gap: 0.35rem;
-		font-family: var(--mono);
-		font-size: clamp(1.6rem, 4.4vw, 2.15rem);
-		font-weight: 500;
-		letter-spacing: -0.02em;
-		line-height: 1;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin-bottom: 0.7rem;
+		flex-wrap: wrap;
+	}
+	.card-head h2 {
+		font-size: 0.86rem;
+		font-weight: 700;
+		letter-spacing: 0.01em;
+		position: relative;
+		padding-left: 0.6rem;
+	}
+	.card-head h2::before {
+		content: "";
+		position: absolute;
+		left: 0;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 0.2rem;
+		height: 0.72rem;
+		border-radius: 1rem;
+		background: var(--primary);
+	}
+	.card-note {
+		font-size: 0.7rem;
+		color: var(--ink-3);
 		font-variant-numeric: tabular-nums;
 	}
-	.ledger-delta {
-		font-family: var(--mono);
-		font-size: 0.66rem;
-		letter-spacing: 0.04em;
-		color: var(--ink-faint);
-	}
-	.ledger-delta.up {
-		color: var(--leaf);
-	}
-	.ledger-delta.down {
-		color: var(--accent);
-	}
 
-	/* ---------- 区块 ---------- */
-	.block {
-		max-width: 78rem;
-		margin: 0 auto;
-		padding: 1.6rem 0 1.9rem;
+	/* ---------- KPI ---------- */
+	.kpi-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.85rem;
 	}
-	.block-head {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: 1.2rem;
+	.kpi {
+		background: var(--card);
+		border-radius: var(--radius-large);
+		padding: 0.85rem 0.9rem 0.5rem;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02), 0 10px 26px -22px rgba(0, 0, 0, 0.3);
+		overflow: hidden;
+		min-width: 0;
+		animation: rise 0.45s cubic-bezier(0.22, 0.68, 0.28, 1) both;
 	}
-	.block-head h2 {
-		margin: 0;
-		font-family: var(--serif);
-		font-size: 1.15rem;
-		font-weight: 600;
-		letter-spacing: 0.04em;
+	html.dark .kpi {
+		box-shadow: none;
 	}
-	.block-note {
-		margin: 0;
-		font-family: var(--mono);
-		font-size: 0.64rem;
-		letter-spacing: 0.1em;
-		color: var(--ink-faint);
+	.kpi-label {
+		font-size: 0.7rem;
+		color: var(--ink-3);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
-
-	/* ---------- 趋势图 ---------- */
-	.chart-wrap {
-		position: relative;
+	.kpi-value {
+		margin-top: 0.3rem !important;
+		font-size: 1.55rem;
+		font-weight: 700;
+		line-height: 1.1;
+		letter-spacing: -0.01em;
+		font-variant-numeric: tabular-nums;
+		color: var(--ink-1);
+	}
+	.kpi-value em {
+		font-style: normal;
+		font-size: 0.72rem;
+		font-weight: 500;
+		color: var(--ink-3);
+		margin-left: 0.15rem;
+	}
+	.kpi-extra {
+		margin-top: 0.2rem !important;
+		font-size: 0.68rem;
+		color: var(--ink-3);
+		font-variant-numeric: tabular-nums;
+		min-height: 1rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.kpi-extra .up {
+		color: var(--up);
+	}
+	.kpi-extra .down {
+		color: var(--down);
+	}
+	.spark {
+		display: block;
 		width: 100%;
-		height: clamp(11rem, 34vw, 15rem);
+		height: 26px;
+		margin-top: 0.35rem;
 	}
+
+	/* ---------- 图表通用 ---------- */
 	.chart {
+		display: block;
 		width: 100%;
-		height: 100%;
 		overflow: visible;
 	}
-	.chart-grid line {
-		stroke: var(--hair);
+	.chart .ax {
+		font-size: 10px;
+		fill: var(--ink-3);
+		font-family: inherit;
+	}
+	.chart .ax-r {
+		font-size: 9.5px;
+		fill: var(--alt);
+	}
+	.chart .gl {
+		stroke: var(--grid);
 		stroke-width: 1;
-		vector-effect: non-scaling-stroke;
 	}
-	.chart-area {
-		fill: var(--accent-soft);
-		opacity: 0;
-		animation: fade 0.9s ease 0.25s forwards;
+	.chart .bar {
+		fill: var(--c2);
+		transition: opacity 0.15s ease;
 	}
-	.chart-line {
-		fill: none;
-		stroke: var(--accent);
-		stroke-width: 1.6;
-		vector-effect: non-scaling-stroke;
-		stroke-linejoin: round;
-		stroke-linecap: round;
+	.chart .bar:hover {
+		fill: var(--c1);
 	}
-	.chart-line.animate {
-		stroke-dasharray: 2400;
-		stroke-dashoffset: 2400;
-		animation: draw 1.4s cubic-bezier(0.3, 0.8, 0.3, 1) forwards;
+	.chart .num {
+		font-size: 10px;
+		fill: var(--ink-3);
+		font-family: inherit;
+		font-variant-numeric: tabular-nums;
 	}
-	.chart-dot {
-		fill: var(--paper);
-		stroke: var(--accent);
-		stroke-width: 1.6;
-		vector-effect: non-scaling-stroke;
-	}
-	.chart-y {
-		font-family: var(--mono);
-		font-size: 9px;
-		fill: var(--ink-faint);
-	}
-	.chart-axis {
+	.legend {
 		display: flex;
-		justify-content: space-between;
-		margin-top: 0.7rem;
-		font-family: var(--mono);
-		font-size: 0.62rem;
-		letter-spacing: 0.08em;
-		color: var(--ink-faint);
+		gap: 0.9rem;
+		margin-bottom: 0.35rem;
+		font-size: 0.68rem;
+		color: var(--ink-3);
+	}
+	.legend span {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+	}
+	.legend i {
+		width: 0.55rem;
+		height: 0.55rem;
+		border-radius: 0.15rem;
+	}
+	.rose {
+		max-width: 264px;
+		margin: 0 auto;
+	}
+	/* 卡片高度被同行拉长时，让图垂直居中 */
+	.card.col {
+		display: flex;
+		flex-direction: column;
+	}
+	.card.col > .chart {
+		margin-block: auto;
 	}
 
-	/* ---------- 热门榜 ---------- */
-	.ranking {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-	.ranking li {
+	/* ---------- 日历热力图 ---------- */
+	.cal-board {
 		display: grid;
-		grid-template-columns: 2.1rem 1fr auto;
-		align-items: baseline;
-		gap: 0.7rem;
-		padding: 0.75rem 0;
-		border-bottom: 1px dashed var(--hair);
-		animation: rise 0.5s cubic-bezier(0.22, 0.68, 0.28, 1) both;
+		grid-template-columns: 0.85rem repeat(20, minmax(0, 1fr));
+		grid-auto-rows: auto;
+		gap: 3px;
 	}
-	.ranking li:last-child {
-		border-bottom: 0;
+	.cal {
+		border-radius: 2px;
+		background: var(--line-soft);
+		aspect-ratio: 1;
+	}
+	.cal.dow {
+		background: transparent;
+		display: grid;
+		place-items: center;
+		font-size: 0.55rem;
+		color: var(--ink-3);
+		line-height: 1;
+	}
+	.cal.lv0 {
+		background: var(--line-soft);
+	}
+	.cal.lv1 {
+		background: var(--c6);
+	}
+	.cal.lv2 {
+		background: var(--c3);
+	}
+	.cal.lv3 {
+		background: var(--c2);
+	}
+	.cal.lv4 {
+		background: var(--c1);
+	}
+	.cal-legend {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 3px;
+		margin-top: 0.55rem;
+		font-size: 0.6rem;
+		color: var(--ink-3);
+	}
+	.cal-legend .cal {
+		width: 0.6rem;
+		aspect-ratio: 1;
+	}
+	.cal-legend span {
+		margin: 0 0.15rem;
+	}
+
+	/* ---------- 同心环 ---------- */
+	.rings {
+		max-width: 176px;
+		margin: 0 auto;
+	}
+	.ring-legend {
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+		margin-top: 0.4rem !important;
+	}
+	.ring-legend li {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		font-size: 0.68rem;
+		color: var(--ink-3);
+		border-top: 1px solid var(--line-soft);
+		padding-top: 0.3rem;
+	}
+	.ring-legend i {
+		flex: none;
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 1rem;
+	}
+	.ring-legend b {
+		margin-left: auto;
+		font-size: 0.78rem;
+		font-weight: 500;
+		color: var(--ink-1);
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* ---------- 环形 ---------- */
+	.donut-wrap {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+	}
+	.donut {
+		flex: none;
+		width: 7.2rem;
+		height: 7.2rem;
+	}
+	.donut-legend {
+		flex: 1;
+		list-style: none;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.22rem;
+	}
+	.donut-legend li {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		font-size: 0.68rem;
+		color: var(--ink-2);
+		line-height: 1.5;
+	}
+	.donut-legend i {
+		flex: none;
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 0.15rem;
+	}
+	.donut-legend b {
+		margin-left: auto;
+		font-weight: 500;
+		color: var(--ink-3);
+		font-variant-numeric: tabular-nums;
+	}
+	.donut-legend span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/* ---------- 排行 ---------- */
+	.rank {
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 0.42rem;
+	}
+	.rank li {
+		display: grid;
+		grid-template-columns: 1.1rem minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 0.45rem;
+		font-size: 0.76rem;
 	}
 	.rank-no {
-		font-family: var(--mono);
-		font-size: 0.7rem;
-		color: var(--accent);
-		letter-spacing: 0.06em;
+		font-size: 0.62rem;
+		color: var(--ink-3);
+		font-variant-numeric: tabular-nums;
 	}
 	.rank-body {
 		display: block;
@@ -549,376 +791,259 @@ import Layout from "@layouts/Layout.astro";
 	}
 	.rank-title {
 		display: block;
-		color: var(--ink);
+		color: var(--ink-1);
 		text-decoration: none;
-		font-size: 0.9rem;
-		line-height: 1.4;
+		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		white-space: nowrap;
+		line-height: 1.4;
 	}
 	.rank-title:hover {
-		color: var(--accent);
+		color: var(--primary);
 	}
 	.rank-track {
 		display: block;
-		margin-top: 0.45rem;
-		height: 2px;
-		background: var(--hair);
+		height: 4px;
+		margin-top: 3px;
+		border-radius: 1rem;
+		background: var(--line-soft);
+		overflow: hidden;
 	}
 	.rank-track i {
 		display: block;
 		height: 100%;
-		background: var(--accent);
 		width: 0;
-		transition: width 0.9s cubic-bezier(0.3, 0.8, 0.3, 1);
+		border-radius: 1rem;
+		background: linear-gradient(90deg, var(--c3), var(--c1));
+		transition: width 0.7s cubic-bezier(0.22, 0.68, 0.28, 1);
 	}
 	.rank-count {
-		font-family: var(--mono);
-		font-size: 0.78rem;
-		font-variant-numeric: tabular-nums;
-		color: var(--ink-soft);
-	}
-
-	/* ---------- AI ---------- */
-	.split {
-		max-width: 78rem;
-		margin: 0 auto;
-		display: grid;
-		grid-template-columns: 1.15fr 1fr;
-		gap: 0 3rem;
-	}
-	/* 分栏里的 block 不要再用 auto 居中，否则两块会左右错开 */
-	.split > .block {
-		max-width: none;
-		margin: 0;
-	}
-
-	.ai-panel {
-		display: flex;
-		align-items: center;
-		gap: 1.6rem;
-	}
-	.ring-wrap {
-		position: relative;
-		width: 6.4rem;
-		height: 6.4rem;
-		flex-shrink: 0;
-	}
-	.ring {
-		width: 100%;
-		height: 100%;
-		transform: rotate(-90deg);
-	}
-	.ring-track {
-		fill: none;
-		stroke: var(--hair);
-		stroke-width: 5;
-	}
-	.ring-value {
-		fill: none;
-		stroke: var(--leaf);
-		stroke-width: 5;
-		stroke-linecap: round;
-		stroke-dasharray: 327;
-		stroke-dashoffset: 327;
-		transition: stroke-dashoffset 1.2s cubic-bezier(0.3, 0.8, 0.3, 1);
-	}
-	.ring-label {
-		position: absolute;
-		inset: 0;
-		display: grid;
-		place-content: center;
-		text-align: center;
-	}
-	.ring-label strong {
-		font-family: var(--mono);
-		font-size: 1.15rem;
-		font-weight: 500;
+		font-size: 0.72rem;
+		color: var(--ink-2);
 		font-variant-numeric: tabular-nums;
 	}
-	.ring-label span {
-		font-family: var(--mono);
-		font-size: 0.55rem;
-		letter-spacing: 0.14em;
-		color: var(--ink-faint);
-	}
-	.ai-facts {
-		margin: 0;
+
+	/* ---------- 事实列表 ---------- */
+	.facts {
 		display: grid;
-		gap: 0.55rem;
-		flex: 1;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.45rem 0.6rem;
+		margin-top: 0.6rem !important;
+	}
+	.facts.two {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		margin-top: 0.8rem !important;
+	}
+	.facts > div {
+		border-top: 1px solid var(--line-soft);
+		padding-top: 0.3rem;
 		min-width: 0;
 	}
-	.ai-facts div {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: 0.6rem;
-		border-bottom: 1px dashed var(--hair);
-		padding-bottom: 0.4rem;
-	}
-	.ai-facts dt {
-		font-size: 0.74rem;
-		color: var(--ink-soft);
+	.facts dt {
+		font-size: 0.65rem;
+		color: var(--ink-3);
 		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
-	.ai-facts dd {
-		margin: 0;
-		font-family: var(--mono);
-		font-size: 0.82rem;
+	.facts dd {
+		margin-top: 0.1rem !important;
+		font-size: 0.84rem;
+		font-weight: 500;
+		color: var(--ink-1);
 		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
-	.models {
-		margin-top: 1rem;
+	.chips {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.4rem;
+		gap: 0.3rem;
+		margin-top: 0.55rem;
 	}
-	.model-chip {
+	.chip {
 		display: inline-flex;
-		flex-direction: column;
-		border: 1px solid var(--hair);
-		padding: 0.4rem 0.6rem;
-		font-family: var(--mono);
-		font-size: 0.6rem;
-		letter-spacing: 0.04em;
-		color: var(--ink-soft);
-	}
-	.model-chip b {
-		color: var(--ink);
-		font-weight: 500;
-	}
-
-	/* ---------- 提问日志 ---------- */
-	.log {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-	.log li {
-		display: grid;
-		grid-template-columns: 5.6rem 1fr auto;
 		align-items: baseline;
-		gap: 0.9rem;
-		padding: 0.7rem 0;
-		border-bottom: 1px dashed var(--hair);
-		animation: rise 0.45s cubic-bezier(0.22, 0.68, 0.28, 1) both;
+		gap: 0.25rem;
+		padding: 0.16rem 0.42rem;
+		border-radius: 1rem;
+		background: var(--field);
+		font-size: 0.63rem;
+		color: var(--ink-2);
+		max-width: 100%;
 	}
-	.log li:last-child {
-		border-bottom: 0;
-	}
-	.log-time {
-		font-family: var(--mono);
-		font-size: 0.66rem;
-		color: var(--ink-faint);
-		letter-spacing: 0.04em;
-	}
-	.log-q {
-		font-size: 0.88rem;
-		line-height: 1.5;
-		overflow-wrap: anywhere;
-	}
-	.log-meta {
-		font-family: var(--mono);
-		font-size: 0.64rem;
-		color: var(--ink-faint);
+	.chip b {
+		font-weight: 500;
+		overflow: hidden;
+		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.log-meta.bad {
-		color: var(--accent);
-	}
-	.empty {
-		padding: 1.4rem 0;
-		font-size: 0.8rem;
-		color: var(--ink-faint);
+	.chip span {
+		color: var(--ink-3);
+		font-variant-numeric: tabular-nums;
 	}
 
-	/* ---------- 访问时段热力 ---------- */
-	.heat {
+	/* ---------- 月度柱 ---------- */
+	.months {
 		display: grid;
-		grid-template-columns: repeat(24, minmax(0, 1fr));
-		gap: 2px;
-		height: 4.5rem;
+		grid-template-columns: repeat(8, minmax(0, 1fr));
+		gap: 0.35rem;
+		height: 5.4rem;
 		align-items: end;
 	}
-	.heat i {
-		display: block;
-		background: var(--accent);
-		border-radius: 1px 1px 0 0;
-		min-height: 2px;
-		transition: height 0.7s cubic-bezier(0.3, 0.8, 0.3, 1), opacity 0.3s ease;
-	}
-	.heat i:hover {
-		opacity: 0.65;
-	}
-	.heat-axis {
-		display: flex;
-		justify-content: space-between;
-		margin-top: 0.5rem;
-		font-family: var(--mono);
-		font-size: 0.6rem;
-		color: var(--ink-faint);
-	}
-
-	/* ---------- 写作节奏 ---------- */
-	.months {
-		display: flex;
-		align-items: flex-end;
-		gap: 0.35rem;
-		height: 5.5rem;
-		margin-bottom: 1rem;
-	}
 	.month {
-		flex: 1;
 		display: flex;
 		flex-direction: column;
-		align-items: center;
 		justify-content: flex-end;
-		gap: 0.35rem;
+		align-items: center;
 		height: 100%;
+		gap: 0.15rem;
 	}
 	.month b {
-		font-family: var(--mono);
 		font-size: 0.62rem;
 		font-weight: 500;
-		color: var(--ink-soft);
+		color: var(--ink-2);
+		font-variant-numeric: tabular-nums;
+		height: 0.8rem;
 	}
 	.month i {
 		display: block;
 		width: 100%;
-		background: var(--leaf);
-		opacity: 0.9;
-		min-height: 2px;
-		transition: height 0.7s cubic-bezier(0.3, 0.8, 0.3, 1);
+		max-width: 1.6rem;
+		height: 2px;
+		border-radius: 0.3rem 0.3rem 0.15rem 0.15rem;
+		background: linear-gradient(180deg, var(--c1), var(--c3));
+		transition: height 0.7s cubic-bezier(0.22, 0.68, 0.28, 1);
 	}
 	.month span {
-		font-family: var(--mono);
 		font-size: 0.58rem;
-		color: var(--ink-faint);
-		letter-spacing: 0.04em;
-	}
-	.content-facts {
-		margin: 0;
-		display: grid;
-		gap: 0.45rem;
-	}
-	.content-facts div {
-		display: flex;
-		justify-content: space-between;
-		border-bottom: 1px dashed var(--hair);
-		padding-bottom: 0.4rem;
-	}
-	.content-facts dt {
-		font-size: 0.74rem;
-		color: var(--ink-soft);
-	}
-	.content-facts dd {
-		margin: 0;
-		font-family: var(--mono);
-		font-size: 0.8rem;
-	}
-
-	/* ---------- 标签条 ---------- */
-	.tagbars {
-		display: grid;
-		gap: 0.55rem;
-	}
-	.tagbar {
-		display: grid;
-		grid-template-columns: 5.5rem 1fr 2rem;
-		align-items: center;
-		gap: 0.6rem;
-		font-size: 0.78rem;
-	}
-	.tagbar span:first-child {
-		overflow: hidden;
-		text-overflow: ellipsis;
+		color: var(--ink-3);
 		white-space: nowrap;
-		color: var(--ink-soft);
-	}
-	.tagbar em {
-		display: block;
-		height: 3px;
-		background: var(--hair);
-		font-style: normal;
-	}
-	.tagbar em i {
-		display: block;
-		height: 100%;
-		background: var(--leaf);
-		width: 0;
-		transition: width 0.8s cubic-bezier(0.3, 0.8, 0.3, 1);
-	}
-	.tagbar b {
-		font-family: var(--mono);
-		font-size: 0.72rem;
-		font-weight: 500;
-		text-align: right;
-		color: var(--ink-faint);
 	}
 
-	.ranking.compact li {
-		padding: 0.55rem 0;
+	/* ---------- 提问记录 ---------- */
+	.log {
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		max-height: 22rem;
+		overflow-y: auto;
+	}
+	.log li {
+		display: grid;
+		grid-template-columns: 6.4rem minmax(0, 1fr) auto;
+		align-items: baseline;
+		gap: 0.6rem;
+		padding: 0.42rem 0.1rem;
+		border-top: 1px solid var(--line-soft);
+		font-size: 0.75rem;
+	}
+	.log li:first-child {
+		border-top: 0;
+	}
+	.log-time {
+		font-size: 0.66rem;
+		color: var(--ink-3);
+		font-variant-numeric: tabular-nums;
+	}
+	.log-q {
+		color: var(--ink-1);
+		overflow-wrap: anywhere;
+	}
+	.log-meta {
+		font-size: 0.64rem;
+		color: var(--ink-3);
+		font-variant-numeric: tabular-nums;
+	}
+	.log-meta.bad {
+		color: var(--down);
+	}
+
+	.empty {
+		display: block;
+		padding: 1.1rem 0;
+		font-size: 0.74rem;
+		color: var(--ink-3);
+		text-align: center;
 	}
 
 	.foot {
-		max-width: 78rem;
-		margin: 0 auto;
-		padding: 1.4rem 0 0;
-		font-family: var(--mono);
-		font-size: 0.62rem;
-		letter-spacing: 0.1em;
-		color: var(--ink-faint);
+		margin-top: 1.2rem;
+		text-align: center;
+		font-size: 0.66rem;
+		color: var(--ink-3);
 	}
 
 	@keyframes rise {
 		from {
 			opacity: 0;
-			transform: translateY(8px);
+			transform: translateY(6px);
 		}
 		to {
 			opacity: 1;
 			transform: none;
 		}
 	}
-	@keyframes draw {
-		to {
-			stroke-dashoffset: 0;
-		}
-	}
-	@keyframes fade {
-		to {
-			opacity: 1;
-		}
-	}
 
-	@media (max-width: 860px) {
-		.split {
-			grid-template-columns: 1fr;
+	/* ---------- 响应式（移动优先） ---------- */
+	@media (min-width: 34rem) {
+		.kpi-grid {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
 		}
-		.ledger {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	@media (min-width: 57rem) {
+		.grid {
+			grid-template-columns: repeat(12, minmax(0, 1fr));
 		}
-		.ledger-item:nth-child(2n) {
-			border-right: 0;
+		.span-4 {
+			grid-column: span 4;
 		}
-		.ledger-item:nth-child(odd) {
-			border-right: 1px solid var(--hair);
+		.span-6 {
+			grid-column: span 6;
 		}
-		.masthead-right {
-			text-align: left;
-			width: 100%;
+		.span-8 {
+			grid-column: span 8;
 		}
-		.controls {
-			justify-content: flex-start;
+		.kpi-grid {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+		.facts.two {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+	}
+	@media (max-width: 620px) {
+		.dash {
+			padding: 0.85rem 0.7rem 3rem;
+		}
+		.kpi-grid {
+			gap: 0.6rem;
+		}
+		.kpi-value {
+			font-size: 1.3rem;
+		}
+		.cal-board {
+			grid-template-columns: 0.7rem repeat(20, minmax(0, 1fr));
+			gap: 2px;
 		}
 		.log li {
-			grid-template-columns: 1fr auto;
-			row-gap: 0.25rem;
+			grid-template-columns: minmax(0, 1fr) auto;
 		}
 		.log-time {
 			grid-column: 1 / -1;
+			order: -1;
+		}
+		.donut-wrap {
+			flex-direction: column;
+			align-items: stretch;
+		}
+		.donut {
+			width: 8.4rem;
+			height: 8.4rem;
+			margin: 0 auto;
+		}
+		.brand-text p {
+			display: none;
 		}
 	}
 
@@ -931,6 +1056,7 @@ import Layout from "@layouts/Layout.astro";
 </style>
 
 <script>
+	type Point = { day: string; count: number };
 	type Overview = {
 		generatedAt: string;
 		today: string;
@@ -939,9 +1065,10 @@ import Layout from "@layouts/Layout.astro";
 			total: number;
 			today: number;
 			yesterday: number;
-			series: { day: string; count: number }[];
+			series: Point[];
 			top: { path: string; count: number }[];
 			hours: { hour: number; count: number }[];
+			calendar: Point[];
 			search: { total: number; top: { keyword: string; count: number }[] };
 		};
 		ai: {
@@ -954,7 +1081,7 @@ import Layout from "@layouts/Layout.astro";
 			zeroHits: number;
 			avgHits: number;
 			topPaths: { path: string; count: number }[];
-			series: { day: string; count: number }[];
+			series: Point[];
 			recent: { ts: string; question: string; model: string; ms: number; ok: number }[];
 			models: { model: string; count: number }[];
 		};
@@ -967,62 +1094,147 @@ import Layout from "@layouts/Layout.astro";
 	let range = 14;
 	let titles = new Map<string, string>();
 	let postsCache: PostMeta[] = [];
+	let lastData: Overview | null = null;
 
 	const fmtNum = (value: number) => value.toLocaleString("zh-CN");
 	const pad = (value: number) => String(value).padStart(2, "0");
+	const esc = (text: string) => String(text ?? "").replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c] ?? c);
+	const sum = (rows: Point[]) => rows.reduce((acc, row) => acc + row.count, 0);
 
 	/* 数字滚动 */
 	function countUp(node: HTMLElement, target: number) {
-		const duration = 700;
+		const duration = 650;
 		const start = performance.now();
+		const decimals = Number(node.dataset.decimals ?? 0);
 		function step(now: number) {
 			const progress = Math.min(1, (now - start) / duration);
 			const eased = 1 - (1 - progress) ** 3;
-			node.textContent = fmtNum(Math.round(target * eased));
+			const value = target * eased;
+			node.textContent = decimals > 0 ? value.toFixed(decimals) : fmtNum(Math.round(value));
 			if (progress < 1) requestAnimationFrame(step);
 		}
 		requestAnimationFrame(step);
 	}
 
 	function deltaHtml(today: number, yesterday: number) {
-		if (yesterday === 0 && today === 0) return "";
-		if (yesterday === 0) return `<span class="ledger-delta up">昨日 0</span>`;
+		if (yesterday === 0 && today === 0) return "—";
+		if (yesterday === 0) return `昨日 0 · 今天开始有`;
 		const diff = today - yesterday;
+		if (diff === 0) return `与昨日持平`;
 		const pct = Math.round((diff / yesterday) * 100);
-		if (diff === 0) return `<span class="ledger-delta">持平</span>`;
 		const cls = diff > 0 ? "up" : "down";
-		const arrow = diff > 0 ? "▲" : "▼";
-		return `<span class="ledger-delta ${cls}">${arrow} ${Math.abs(pct)}% · 昨日 ${fmtNum(yesterday)}</span>`;
+		return `<span class="${cls}">${diff > 0 ? "▲" : "▼"} ${Math.abs(pct)}%</span> · 昨日 ${fmtNum(yesterday)}`;
 	}
 
-	function renderLedger(data: Overview) {
-		const box = $("#ledger");
+	/* 迷你折线 */
+	function spark(values: number[], color = "var(--c2)") {
+		const max = Math.max(1, ...values);
+		const n = Math.max(2, values.length);
+		const pts = values.map((value, index) => {
+			const x = (index / (n - 1)) * 100;
+			const y = 24 - (value / max) * 20;
+			return `${x.toFixed(1)},${y.toFixed(1)}`;
+		});
+		if (pts.length < 2) pts.push("100,24");
+		return `<svg class="spark" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">
+			<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="1.7"
+				vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />
+		</svg>`;
+	}
+
+	/* ================= KPI ================= */
+	function renderKpis(data: Overview) {
+		const box = $("#kpis");
 		if (!box) return;
+
 		const tags = new Set<string>();
 		const categories = new Set<string>();
+		const monthly = new Map<string, number>();
 		for (const post of postsCache) {
 			for (const tag of post.tags ?? []) tags.add(tag);
 			if (post.category) categories.add(post.category);
+			const month = (post.published ?? "").slice(0, 7);
+			if (month) monthly.set(month, (monthly.get(month) ?? 0) + 1);
 		}
 
-		const items: { label: string; value: number; extra?: string; suffix?: string }[] = [
-			{ label: "文章", value: postsCache.length, extra: `<span class="ledger-delta">${categories.size} 个分类</span>` },
-			{ label: "标签", value: tags.size, extra: `<span class="ledger-delta">去重后</span>` },
-			{ label: "今日阅读", value: data.views.today, extra: deltaHtml(data.views.today, data.views.yesterday) },
-			{ label: "累计阅读", value: data.views.total, extra: `<span class="ledger-delta">${data.range} 天内 ${fmtNum(data.views.series.reduce((sum, row) => sum + row.count, 0))}</span>` },
-			{ label: "AI 提问", value: data.ai.total, extra: deltaHtml(data.ai.today, data.ai.yesterday) },
-			{ label: "AI 平均响应", value: Number((data.ai.avgMs / 1000).toFixed(1)), suffix: "s", extra: `<span class="ledger-delta">近 ${data.range} 天</span>` },
-			{ label: "累计 tokens", value: data.ai.tokens, extra: `<span class="ledger-delta">模型调用量</span>` },
-			{ label: "对话成功率", value: data.ai.successRate, suffix: "%", extra: `<span class="ledger-delta">${data.ai.total} 次中有 ${Math.round((data.ai.total * data.ai.successRate) / 100)} 次成功</span>` },
+		const monthSeries: number[] = [];
+		for (let i = 7; i >= 0; i--) {
+			const date = new Date();
+			date.setDate(1);
+			date.setMonth(date.getMonth() - i);
+			monthSeries.push(monthly.get(`${date.getFullYear()}-${pad(date.getMonth() + 1)}`) ?? 0);
+		}
+
+		const days = fillSeries(data.views.series, data.range);
+		const aiDays = fillSeries(data.ai.series, data.range);
+
+		const items: { label: string; value: number; suffix?: string; decimals?: number; extra: string; spark: string }[] = [
+			{
+				label: "文章",
+				value: postsCache.length,
+				extra: `${categories.size} 个分类`,
+				spark: spark(monthSeries),
+			},
+			{
+				label: "标签",
+				value: tags.size,
+				extra: "去重后",
+				spark: "",
+			},
+			{
+				label: "今日阅读",
+				value: data.views.today,
+				suffix: "次",
+				extra: deltaHtml(data.views.today, data.views.yesterday),
+				spark: spark(days.map((row) => row.count)),
+			},
+			{
+				label: "累计阅读",
+				value: data.views.total,
+				suffix: "次",
+				extra: `近 ${data.range} 天 ${fmtNum(sum(days))} 次`,
+				spark: spark(days.map((row) => row.count)),
+			},
+			{
+				label: "AI 提问",
+				value: data.ai.total,
+				suffix: "次",
+				extra: deltaHtml(data.ai.today, data.ai.yesterday),
+				spark: spark(aiDays.map((row) => row.count), "var(--alt)"),
+			},
+			{
+				label: "平均响应",
+				value: Number((data.ai.avgMs / 1000).toFixed(1)),
+				decimals: 1,
+				suffix: "秒",
+				extra: `近 ${data.range} 天`,
+				spark: "",
+			},
+			{
+				label: "累计 tokens",
+				value: data.ai.tokens,
+				extra: "模型调用量",
+				spark: "",
+			},
+			{
+				label: "回答成功率",
+				value: data.ai.successRate,
+				suffix: "%",
+				extra: `${data.ai.total} 次提问`,
+				spark: "",
+			},
 		];
 
 		box.innerHTML = items
 			.map(
 				(item, index) => `
-			<div class="ledger-item" style="animation-delay:${index * 45}ms">
-				<p class="ledger-label">${item.label}</p>
-				<div class="ledger-value"><span data-count="${item.value}">0</span>${item.suffix ? `<span style="font-size:0.8em;color:var(--ink-faint)">${item.suffix}</span>` : ""}</div>
-				<div style="margin-top:0.5rem">${item.extra ?? ""}</div>
+			<div class="kpi" style="animation-delay:${index * 35}ms">
+				<p class="kpi-label">${esc(item.label)}</p>
+				<p class="kpi-value"><span data-count="${item.value}" data-decimals="${item.decimals ?? 0}">0</span>${
+					item.suffix ? `<em>${item.suffix}</em>` : ""
+				}</p>
+				<p class="kpi-extra">${item.extra}</p>
+				${item.spark}
 			</div>`,
 			)
 			.join("");
@@ -1032,108 +1244,119 @@ import Layout from "@layouts/Layout.astro";
 		}
 	}
 
-	function fillSeries(series: { day: string; count: number }[], days: number) {
+	function fillSeries(series: Point[], days: number) {
 		const map = new Map(series.map((row) => [row.day, row.count]));
-		const out: { day: string; count: number }[] = [];
+		const out: Point[] = [];
 		for (let i = days - 1; i >= 0; i--) {
-			const date = new Date(Date.now() + 8 * 3600 * 1000 - i * 86400000);
-			const key = date.toISOString().slice(0, 10);
+			const key = new Date(Date.now() + 8 * 3600 * 1000 - i * 86400000).toISOString().slice(0, 10);
 			out.push({ day: key, count: map.get(key) ?? 0 });
 		}
 		return out;
 	}
 
-	function renderTrend(data: Overview) {
-		const svg = $("#trend") as unknown as SVGSVGElement | null;
+	/* ================= 组合图：柱 + 折线 ================= */
+	function renderCombo(data: Overview) {
+		const svg = $("#combo") as unknown as SVGSVGElement | null;
 		if (!svg) return;
+		const W = Math.max(260, Math.round(svg.clientWidth || 720));
+		const H = W < 520 ? 190 : 240;
+		svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+		svg.setAttribute("height", String(H));
+
+		const L = 32;
+		const R = 26;
+		const T = 12;
+		const B = 22;
+		const plotW = W - L - R;
+		const plotH = H - T - B;
+
 		const days = fillSeries(data.views.series, data.range);
-		const width = 800;
-		const height = 260;
-		const padTop = 18;
-		const padBottom = 26;
-		const max = Math.max(4, ...days.map((d) => d.count));
-		const stepX = days.length > 1 ? width / (days.length - 1) : width;
-		const yOf = (value: number) => padTop + (1 - value / max) * (height - padTop - padBottom);
+		const aiMap = new Map(data.ai.series.map((row) => [row.day, row.count]));
+		const aiCounts = days.map((day) => aiMap.get(day.day) ?? 0);
+		const maxV = Math.max(4, ...days.map((row) => row.count));
+		const maxA = Math.max(2, ...aiCounts);
 
-		const points = days.map((item, index) => `${(index * stepX).toFixed(1)},${yOf(item.count).toFixed(1)}`);
-		const linePath = `M ${points.join(" L ")}`;
-		const areaPath = `${linePath} L ${width},${height - padBottom} L 0,${height - padBottom} Z`;
+		const slot = plotW / days.length;
+		const barW = Math.max(3, Math.min(24, slot * 0.56));
 
-		const gridLines = [0, 0.5, 1]
+		const grid = [0, 0.5, 1]
 			.map((ratio) => {
-				const y = padTop + ratio * (height - padTop - padBottom);
-				const label = Math.round(max * (1 - ratio));
-				return `<line x1="0" y1="${y}" x2="${width}" y2="${y}" />
-					<text class="chart-y" x="0" y="${y - 5}">${label}</text>`;
+				const y = T + ratio * plotH;
+				return `<line class="gl" x1="${L}" y1="${y.toFixed(1)}" x2="${W - R}" y2="${y.toFixed(1)}" />
+					<text class="ax" x="${L - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end">${Math.round(maxV * (1 - ratio))}</text>
+					<text class="ax-r" x="${W - R + 6}" y="${(y + 3).toFixed(1)}">${Math.round(maxA * (1 - ratio))}</text>`;
 			})
 			.join("");
 
-		const dots = days
-			.map((item, index) => {
-				if (item.count === 0) return "";
-				return `<circle class="chart-dot" cx="${(index * stepX).toFixed(1)}" cy="${yOf(item.count).toFixed(1)}" r="2.6" />`;
+		const bars = days
+			.map((row, index) => {
+				const h = (row.count / maxV) * plotH;
+				const x = L + index * slot + (slot - barW) / 2;
+				const y = T + plotH - h;
+				return `<rect class="bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, h).toFixed(1)}" rx="2">
+					<title>${row.day} · 阅读 ${row.count} 次</title>
+				</rect>`;
 			})
 			.join("");
+
+		const linePts = aiCounts.map((value, index) => {
+			const x = L + index * slot + slot / 2;
+			const y = T + plotH - (value / maxA) * plotH;
+			return `${x.toFixed(1)},${y.toFixed(1)}`;
+		});
+		const dots = aiCounts
+			.map((value, index) => {
+				if (value === 0) return "";
+				const x = L + index * slot + slot / 2;
+				const y = T + plotH - (value / maxA) * plotH;
+				return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="var(--alt)"><title>${days[index].day} · 提问 ${value} 次</title></circle>`;
+			})
+			.join("");
+
+		const labelEvery = Math.max(1, Math.ceil(days.length / (W < 520 ? 5 : 8)));
+		const labels = days
+			.map((row, index) => {
+				if (index % labelEvery !== 0 && index !== days.length - 1) return "";
+				const x = L + index * slot + slot / 2;
+				return `<text class="ax" x="${x.toFixed(1)}" y="${H - 6}" text-anchor="middle">${Number(row.day.slice(5, 7))}/${Number(
+					row.day.slice(8, 10),
+				)}</text>`;
+			})
+			.join("");
+
+		svg.innerHTML = `${grid}${bars}
+			<polyline points="${linePts.join(" ")}" fill="none" stroke="var(--alt)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" />
+			${dots}${labels}`;
+
+		const note = $("#combo-note");
+		if (note) {
+			const totalV = sum(days);
+			note.textContent = `${data.range} 天 · 阅读 ${fmtNum(totalV)} 次 · 提问 ${fmtNum(sum(aiCounts.map((c, i) => ({ day: days[i].day, count: c }))))} 次`;
+		}
+	}
+
+	/* ================= 半环仪表 ================= */
+	function renderGauge(data: Overview) {
+		const svg = $("#gauge") as unknown as SVGSVGElement | null;
+		if (!svg) return;
+		const W = Math.max(200, Math.round(svg.clientWidth || 260));
+		const R = Math.min(96, W * 0.36);
+		const H = R + 34;
+		svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+		svg.setAttribute("height", String(H));
+
+		const cx = W / 2;
+		const cy = R + 10;
+		const len = Math.PI * R;
+		const rate = Math.max(0, Math.min(100, data.ai.successRate));
+		const path = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`;
 
 		svg.innerHTML = `
-			<g class="chart-grid">${gridLines}</g>
-			<path class="chart-area" d="${areaPath}" />
-			<path class="chart-line animate" d="${linePath}" />
-			${dots}
-		`;
-
-		const axis = $("#trend-axis");
-		if (axis) {
-			const picks = days.length <= 8 ? days : days.filter((_, index) => index % Math.ceil(days.length / 7) === 0 || index === days.length - 1);
-			axis.innerHTML = picks.map((item) => `<span>${Number(item.day.slice(5, 7))}/${Number(item.day.slice(8, 10))}</span>`).join("");
-		}
-
-		const note = $("#trend-note");
-		if (note) {
-			const sum = days.reduce((acc, row) => acc + row.count, 0);
-			note.textContent = `${data.range} 天共 ${fmtNum(sum)} 次 · 日均 ${(sum / data.range).toFixed(1)}`;
-		}
-	}
-
-	function renderRanking(data: Overview) {
-		const box = $("#ranking");
-		if (!box) return;
-		if (data.views.top.length === 0) {
-			box.innerHTML = `<li class="empty" style="display:block;border:0">还没有数据，等有人访问后就会出现</li>`;
-			return;
-		}
-		const max = Math.max(...data.views.top.map((item) => item.count));
-		box.innerHTML = data.views.top
-			.map((item, index) => {
-				const title = titles.get(item.path) ?? item.path;
-				return `<li style="animation-delay:${index * 45}ms">
-					<span class="rank-no">${pad(index + 1)}</span>
-					<span class="rank-body">
-						<a class="rank-title" href="${item.path}">${title}</a>
-						<span class="rank-track"><i data-width="${Math.round((item.count / max) * 100)}"></i></span>
-					</span>
-					<span class="rank-count">${fmtNum(item.count)}</span>
-				</li>`;
-			})
-			.join("");
-		requestAnimationFrame(() => {
-			requestAnimationFrame(() => {
-				for (const bar of box.querySelectorAll<HTMLElement>(".rank-track i")) {
-					bar.style.width = `${bar.dataset.width}%`;
-				}
-			});
-		});
-	}
-
-	function renderAi(data: Overview) {
-		const ring = $("#ring") as unknown as SVGCircleElement | null;
-		const ringValue = $("#ring-value");
-		const circumference = 2 * Math.PI * 52;
-		if (ring) {
-			ring.style.strokeDasharray = String(circumference);
-			ring.style.strokeDashoffset = String(circumference * (1 - data.ai.successRate / 100));
-		}
-		if (ringValue) ringValue.textContent = `${data.ai.successRate}%`;
+			<path d="${path}" fill="none" stroke="var(--line-soft)" stroke-width="14" stroke-linecap="round" />
+			<path d="${path}" fill="none" stroke="var(--c1)" stroke-width="14" stroke-linecap="round"
+				stroke-dasharray="${len.toFixed(1)}" stroke-dashoffset="${(len * (1 - rate / 100)).toFixed(1)}" />
+			<text x="${cx}" y="${cy - 20}" text-anchor="middle" style="font-size:${Math.round(R * 0.34)}px;font-weight:700;fill:var(--ink-1);font-variant-numeric:tabular-nums">${rate}%</text>
+			<text x="${cx}" y="${cy - 4}" text-anchor="middle" style="font-size:11px;fill:var(--ink-3)">回答成功率</text>`;
 
 		const facts = $("#ai-facts");
 		if (facts) {
@@ -1141,11 +1364,11 @@ import Layout from "@layouts/Layout.astro";
 				["累计提问", `${fmtNum(data.ai.total)} 次`],
 				["今日提问", `${fmtNum(data.ai.today)} 次`],
 				["平均响应", data.ai.avgMs ? `${(data.ai.avgMs / 1000).toFixed(1)} 秒` : "—"],
-				["平均命中段落", `${data.ai.avgHits} 段`],
-				["没检索到内容", `${data.ai.zeroHits} 次`],
-				["累计 tokens", fmtNum(data.ai.tokens)],
+				["平均命中", `${data.ai.avgHits} 段`],
+				["没检索到", `${data.ai.zeroHits} 次`],
+				["tokens", fmtNum(data.ai.tokens)],
 			];
-			facts.innerHTML = rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
+			facts.innerHTML = rows.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join("");
 		}
 
 		const models = $("#models");
@@ -1153,39 +1376,313 @@ import Layout from "@layouts/Layout.astro";
 			models.innerHTML =
 				data.ai.models.length === 0
 					? ""
-					: data.ai.models.map((m) => `<span class="model-chip"><b>${m.model}</b><span>${m.count} 次</span></span>`).join("");
+					: data.ai.models.map((m) => `<span class="chip"><b>${esc(m.model)}</b><span>${m.count}</span></span>`).join("");
 		}
 	}
 
-	function renderHours(data: Overview) {
-		const box = $("#hours");
-		if (!box) return;
+	/* ================= 玫瑰图（24 小时） ================= */
+	function renderRose(data: Overview) {
+		const svg = $("#rose") as unknown as SVGSVGElement | null;
+		if (!svg) return;
+		const S = 260;
+		const c = S / 2;
+		const inner = 30;
+		const outerMax = 112;
+
 		const map = new Map(data.views.hours.map((row) => [row.hour, row.count]));
-		const max = Math.max(1, ...data.views.hours.map((row) => row.count));
-		box.innerHTML = Array.from({ length: 24 }, (_, hour) => {
-			const count = map.get(hour) ?? 0;
-			const height = count === 0 ? 2 : Math.max(6, Math.round((count / max) * 100));
-			return `<i data-h="${height}" title="${hour}:00 · ${count} 次" style="height:2px;opacity:${count ? 0.9 : 0.18}"></i>`;
-		}).join("");
-		requestAnimationFrame(() => {
-			for (const bar of box.querySelectorAll<HTMLElement>("i[data-h]")) {
-				bar.style.height = `${bar.dataset.h}%`;
-			}
-		});
-		const note = $("#hours-note");
+		const counts = Array.from({ length: 24 }, (_, hour) => map.get(hour) ?? 0);
+		const max = Math.max(1, ...counts);
+
+		const pt = (r: number, deg: number) => {
+			const rad = ((deg - 90) * Math.PI) / 180;
+			return `${(c + r * Math.cos(rad)).toFixed(1)},${(c + r * Math.sin(rad)).toFixed(1)}`;
+		};
+
+		const slices = counts
+			.map((count, hour) => {
+				const a1 = hour * 15 + 2.4;
+				const a2 = (hour + 1) * 15 - 2.4;
+				const r = inner + Math.max(2, (count / max) * (outerMax - inner));
+				const d = `M ${pt(inner, a1)} A ${inner} ${inner} 0 0 1 ${pt(inner, a2)} L ${pt(r, a2)} A ${r} ${r} 0 0 1 ${pt(
+					r,
+					a1,
+				)} Z`;
+				const night = hour >= 23 || hour < 6;
+				const color = count === 0 ? "var(--line-soft)" : night ? "var(--c4)" : "var(--c1)";
+				return `<path d="${d}" fill="${color}" opacity="${count === 0 ? 0.55 : 0.92}"><title>${hour}:00 · ${count} 次</title></path>`;
+			})
+			.join("");
+
+		const ticks = [0, 6, 12, 18]
+			.map((hour) => {
+				const deg = hour * 15;
+				const [x, y] = pt(outerMax + 15, deg).split(",");
+				return `<text class="ax" x="${x}" y="${y}" dy="3" text-anchor="middle">${hour}</text>`;
+			})
+			.join("");
+
+		const guide = `<circle cx="${c}" cy="${c}" r="${((inner + outerMax) / 2).toFixed(1)}" fill="none" stroke="var(--line-soft)" stroke-width="1" stroke-dasharray="2 4" />`;
+
+		const total = counts.reduce((a, b) => a + b, 0);
+		const peak = counts.reduce((best, count, hour) => (count > counts[best] ? hour : best), 0);
+		const peakLabel = counts[peak] > 0 ? `${peak}` : "—";
+
+		svg.innerHTML = `${guide}${slices}${ticks}
+			<text x="${c}" y="${c - 1}" text-anchor="middle" style="font-size:15px;font-weight:700;fill:var(--ink-1);font-variant-numeric:tabular-nums">${peakLabel}</text>
+			<text x="${c}" y="${c + 12}" text-anchor="middle" style="font-size:9px;fill:var(--ink-3)">${
+				counts[peak] > 0 ? ":00 最热闹" : "暂无数据"
+			}</text>`;
+
+		const note = $("#rose-note");
 		if (note) {
-			const peak = data.views.hours.reduce((best, row) => (row.count > (best?.count ?? 0) ? row : best), null as null | { hour: number; count: number });
-			note.textContent = peak ? `高峰 ${peak.hour}:00 前后 · 共 ${fmtNum(peak.count)} 次` : "按小时分布";
+			note.textContent = total > 0 ? `共 ${fmtNum(total)} 次 · 高峰 ${peak}:00` : "还没有数据";
 		}
 	}
 
-	function renderContent() {
-		const monthsBox = $("#months");
-		const facts = $("#content-facts");
-		const rhythmNote = $("#rhythm-note");
-		if (!monthsBox) return;
+	/* ================= 日历热力图 ================= */
+	function renderCalendar(data: Overview) {
+		const box = $("#calendar");
+		const note = $("#cal-note");
+		if (!box) return;
 
-		// 按月聚合发文数（最近 8 个月，含空月）
+		const map = new Map((data.views.calendar ?? []).map((row) => [row.day, row.count]));
+		const weeks = 20;
+		const todayKey = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+		const end = new Date(`${todayKey}T00:00:00Z`);
+		const endDow = (end.getUTCDay() + 6) % 7; // 0 = 周一
+		const lastMonday = new Date(end.getTime() - endDow * 86400000);
+		const firstMonday = new Date(lastMonday.getTime() - (weeks - 1) * 7 * 86400000);
+		const max = Math.max(1, ...map.values());
+
+		const cells: string[] = [];
+		for (let dow = 0; dow < 7; dow++) {
+			const label = dow === 0 ? "一" : dow === 2 ? "三" : dow === 4 ? "五" : dow === 6 ? "日" : "";
+			cells.push(`<div class="cal dow">${label}</div>`);
+			for (let w = 0; w < weeks; w++) {
+				const day = new Date(firstMonday.getTime() + (w * 7 + dow) * 86400000).toISOString().slice(0, 10);
+				const count = map.get(day) ?? 0;
+				const ratio = count / max;
+				const level = count === 0 ? 0 : ratio > 0.7 ? 4 : ratio > 0.45 ? 3 : ratio > 0.2 ? 2 : 1;
+				const future = day > todayKey;
+				cells.push(
+					`<div class="cal${future ? "" : ` lv${level}`}"${future ? ' style="opacity:0.35"' : ""} title="${day} · ${count} 次阅读"></div>`,
+				);
+			}
+		}
+		box.innerHTML = cells.join("");
+
+		if (note) {
+			const filled = Array.from({ length: weeks * 7 }, (_, i) =>
+				new Date(firstMonday.getTime() + i * 86400000).toISOString().slice(0, 10),
+			).filter((day) => day <= todayKey && (map.get(day) ?? 0) > 0).length;
+			note.textContent = `近 ${weeks} 周 · ${filled} 天有人来访`;
+		}
+	}
+
+	/* ================= 同心环：读者参与度 ================= */
+	function renderRings(data: Overview) {
+		const svg = $("#rings") as unknown as SVGSVGElement | null;
+		const legend = $("#ring-legend");
+		if (!svg) return;
+
+		const views = sum(fillSeries(data.views.series, data.range));
+		const aiTotal = sum(fillSeries(data.ai.series, data.range));
+		const answered = Math.max(0, aiTotal - data.ai.zeroHits);
+		const ratioOf = (value: number) => (views > 0 ? Math.min(1, value / views) : 0);
+
+		const rings = [
+			{ label: "用站内搜索", value: data.views.search.total, color: "var(--c2)" },
+			{ label: "问 AI 助手", value: aiTotal, color: "var(--c4)" },
+			{ label: "问到了答案", value: answered, color: "var(--c1)" },
+		].map((ring) => ({ ...ring, p: ratioOf(ring.value) }));
+
+		const radii = [78, 58, 38];
+		const arcs = rings
+			.map((ring, index) => {
+				const r = radii[index];
+				const C = 2 * Math.PI * r;
+				const dash = C * Math.max(ring.p, 0.006);
+				return `<circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--line-soft)" stroke-width="13" />
+					<circle cx="100" cy="100" r="${r}" fill="none" stroke="${ring.color}" stroke-width="13" stroke-linecap="round"
+						stroke-dasharray="${dash.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 100 100)">
+						<title>${ring.label} · ${ring.value} 次（占阅读 ${Math.round(ring.p * 100)}%）</title>
+					</circle>`;
+			})
+			.join("");
+
+		svg.innerHTML = `${arcs}
+			<text x="100" y="98" text-anchor="middle" style="font-size:19px;font-weight:700;fill:var(--ink-1);font-variant-numeric:tabular-nums">${fmtNum(
+				views,
+			)}</text>
+			<text x="100" y="113" text-anchor="middle" style="font-size:9.5px;fill:var(--ink-3)">次阅读</text>`;
+
+		if (legend) {
+			legend.innerHTML = rings
+				.map(
+					(ring) =>
+						`<li><i style="background:${ring.color}"></i><span>${ring.label}</span><b>${Math.round(ring.p * 100)}%</b></li>`,
+				)
+				.join("");
+		}
+	}
+
+	/* ================= 标签环形图 ================= */
+	function renderTags() {
+		const svg = $("#donut") as unknown as SVGSVGElement | null;
+		const legend = $("#donut-legend");
+		const note = $("#tags-note");
+		if (!svg) return;
+
+		const counter = new Map<string, number>();
+		for (const post of postsCache) {
+			for (const tag of post.tags ?? []) counter.set(tag, (counter.get(tag) ?? 0) + 1);
+		}
+		const entries = Array.from(counter.entries()).sort((a, b) => b[1] - a[1]);
+		const used = entries.length;
+		const orphans = entries.filter(([, count]) => count === 1).length;
+
+		if (note) {
+			const avgPerPost = postsCache.length ? (entries.reduce((acc, [, count]) => acc + count, 0) / postsCache.length).toFixed(1) : "0";
+			note.textContent = `${used} 个标签 · 每篇 ${avgPerPost} 个${orphans > 0 ? ` · ${orphans} 个只用过 1 次` : ""}`;
+		}
+
+		if (entries.length === 0) {
+			svg.innerHTML = "";
+			if (legend) legend.innerHTML = `<li class="empty" style="padding:0">还没有标签</li>`;
+			return;
+		}
+
+		const top = entries.slice(0, 5);
+		const restTotal = entries.slice(5).reduce((acc, [, count]) => acc + count, 0);
+		const slices = top.map(([tag, count], index) => ({ label: tag, count, color: `var(--c${index + 1})` }));
+		if (restTotal > 0) slices.push({ label: "其他", count: restTotal, color: "var(--c6)" });
+
+		const total = slices.reduce((acc, slice) => acc + slice.count, 0);
+		const R = 66;
+		const C = 2 * Math.PI * R;
+		let offset = 0;
+		const arcs = slices
+			.map((slice) => {
+				const dash = (slice.count / total) * C;
+				const gap = Math.min(4, dash * 0.15);
+				const arc = `<circle cx="90" cy="90" r="${R}" fill="none" stroke="${slice.color}" stroke-width="20"
+					stroke-dasharray="${Math.max(0, dash - gap).toFixed(1)} ${(C - Math.max(0, dash - gap)).toFixed(1)}"
+					stroke-dashoffset="${(-offset).toFixed(1)}" transform="rotate(-90 90 90)">
+					<title>${esc(slice.label)} · ${slice.count} 篇</title>
+				</circle>`;
+				offset += dash;
+				return arc;
+			})
+			.join("");
+
+		svg.innerHTML = `${arcs}
+			<text x="90" y="86" text-anchor="middle" style="font-size:20px;font-weight:700;fill:var(--ink-1);font-variant-numeric:tabular-nums">${used}</text>
+			<text x="90" y="101" text-anchor="middle" style="font-size:10px;fill:var(--ink-3)">个标签</text>`;
+
+		if (legend) {
+			legend.innerHTML = slices
+				.map(
+					(slice) =>
+						`<li><i style="background:${slice.color}"></i><span>${esc(slice.label)}</span><b>${Math.round(
+							(slice.count / total) * 100,
+						)}%</b></li>`,
+				)
+				.join("");
+		}
+	}
+
+	/* ================= 散点图 ================= */
+	function renderScatter(data: Overview) {
+		const svg = $("#scatter") as unknown as SVGSVGElement | null;
+		if (!svg) return;
+
+		const countByUrl = new Map(data.views.top.map((row) => [row.path, row.count]));
+		const points = postsCache
+			.filter((post) => (post.words ?? 0) > 0)
+			.map((post) => ({ title: post.title, words: post.words ?? 0, count: countByUrl.get(post.url) ?? 0 }));
+
+		const W = Math.max(220, Math.round(svg.clientWidth || 300));
+		const H = 190;
+		svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+		svg.setAttribute("height", String(H));
+
+		if (points.length < 2) {
+			svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" class="ax">阅读记录还不够，等有数据后再看</text>`;
+			return;
+		}
+
+		const L = 34;
+		const R = 12;
+		const T = 10;
+		const B = 26;
+		const plotW = W - L - R;
+		const plotH = H - T - B;
+		const maxW = Math.max(...points.map((point) => point.words));
+		const maxC = Math.max(...points.map((point) => point.count));
+		const xOf = (words: number) => L + (words / maxW) * plotW;
+		const yOf = (count: number) => T + plotH - (count / maxC) * plotH;
+
+		const grid = [0, 0.5, 1]
+			.map((ratio) => {
+				const y = T + ratio * plotH;
+				return `<line class="gl" x1="${L}" y1="${y.toFixed(1)}" x2="${W - R}" y2="${y.toFixed(1)}" />
+					<text class="ax" x="${L - 5}" y="${(y + 3).toFixed(1)}" text-anchor="end">${Math.round(maxC * (1 - ratio))}</text>`;
+			})
+			.join("");
+
+		const dots = points
+			.map(
+				(point) => `<circle cx="${xOf(point.words).toFixed(1)}" cy="${yOf(point.count).toFixed(1)}" r="5"
+					fill="var(--c1)" fill-opacity="0.75" stroke="var(--card)" stroke-width="1.5">
+					<title>${esc(point.title)} · ${fmtNum(point.words)} 字 · ${point.count} 次</title>
+				</circle>`,
+			)
+			.join("");
+
+		svg.innerHTML = `${grid}${dots}
+			<text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">字数 →</text>`;
+	}
+
+	/* ================= 排行 ================= */
+	function renderRank(
+		id: string,
+		rows: { path?: string; keyword?: string; count: number }[],
+		emptyText: string,
+	) {
+		const box = $(id);
+		if (!box) return;
+		if (rows.length === 0) {
+			box.innerHTML = `<li class="empty" style="display:block">${esc(emptyText)}</li>`;
+			return;
+		}
+		const max = Math.max(...rows.map((row) => row.count));
+		box.innerHTML = rows
+			.map((row, index) => {
+				const label = row.path ? titles.get(row.path) ?? row.path : esc(row.keyword ?? "");
+				const href = row.path ? `<a class="rank-title" href="${row.path}">${esc(label)}</a>` : `<span class="rank-title">${label}</span>`;
+				return `<li>
+					<span class="rank-no">${pad(index + 1)}</span>
+					<span class="rank-body">${href}
+						<span class="rank-track"><i data-w="${Math.round((row.count / max) * 100)}"></i></span>
+					</span>
+					<span class="rank-count">${fmtNum(row.count)}</span>
+				</li>`;
+			})
+			.join("");
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				for (const bar of box.querySelectorAll<HTMLElement>(".rank-track i")) bar.style.width = `${bar.dataset.w}%`;
+			});
+		});
+	}
+
+	/* ================= 写作节奏 ================= */
+	function renderContent() {
+		const box = $("#months");
+		const facts = $("#content-facts");
+		const note = $("#rhythm-note");
+		if (!box) return;
+
 		const counter = new Map<string, number>();
 		let totalWords = 0;
 		let newest = "";
@@ -1196,167 +1693,104 @@ import Layout from "@layouts/Layout.astro";
 			if ((post.published ?? "") > newest) newest = post.published ?? "";
 		}
 
-		const months: { key: string; label: string; count: number }[] = [];
+		const months: { label: string; count: number }[] = [];
 		for (let i = 7; i >= 0; i--) {
 			const date = new Date();
 			date.setDate(1);
 			date.setMonth(date.getMonth() - i);
-			const key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
-			months.push({ key, label: `${date.getMonth() + 1}月`, count: counter.get(key) ?? 0 });
+			months.push({
+				label: `${date.getMonth() + 1}月`,
+				count: counter.get(`${date.getFullYear()}-${pad(date.getMonth() + 1)}`) ?? 0,
+			});
 		}
-		const max = Math.max(1, ...months.map((m) => m.count));
-		monthsBox.innerHTML = months
+		const max = Math.max(1, ...months.map((month) => month.count));
+		box.innerHTML = months
 			.map(
-				(m) => `<div class="month">
-					<b>${m.count || ""}</b>
-					<i data-h="${Math.max(3, Math.round((m.count / max) * 100))}" style="height:3px"></i>
-					<span>${m.label}</span>
+				(month) => `<div class="month">
+					<b>${month.count || ""}</b>
+					<i data-h="${month.count === 0 ? 2 : Math.max(8, Math.round((month.count / max) * 100))}"></i>
+					<span>${month.label}</span>
 				</div>`,
 			)
 			.join("");
 		requestAnimationFrame(() => {
-			for (const bar of monthsBox.querySelectorAll<HTMLElement>("i[data-h]")) bar.style.height = `${bar.dataset.h}%`;
+			for (const bar of box.querySelectorAll<HTMLElement>("i[data-h]")) bar.style.height = `${bar.dataset.h}%`;
 		});
 
 		const avgWords = postsCache.length ? Math.round(totalWords / postsCache.length) : 0;
 		const daysSince = newest ? Math.floor((Date.now() - new Date(newest).getTime()) / 86400000) : null;
 		if (facts) {
 			const rows: [string, string][] = [
-				["总字数", `${fmtNum(totalWords)} 字`],
+				["总字数", fmtNum(totalWords)],
 				["平均每篇", `${fmtNum(avgWords)} 字`],
 				["最近发布", newest || "—"],
-				["停更了", daysSince === null ? "—" : daysSince <= 0 ? "今天刚发" : `${daysSince} 天`],
+				["停更", daysSince === null ? "—" : daysSince <= 0 ? "今天刚发" : `${daysSince} 天`],
 			];
 			facts.innerHTML = rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
 		}
-		if (rhythmNote) {
+		if (note) {
 			const thisMonth = months[months.length - 1]?.count ?? 0;
 			const lastMonth = months[months.length - 2]?.count ?? 0;
-			rhythmNote.textContent = `本月 ${thisMonth} 篇 · 上月 ${lastMonth} 篇`;
+			note.textContent = `本月 ${thisMonth} 篇 · 上月 ${lastMonth} 篇`;
 		}
 	}
 
-	function renderTags() {
-		const box = $("#tags");
-		const note = $("#tags-note");
-		if (!box) return;
-
-		const counter = new Map<string, number>();
-		for (const post of postsCache) {
-			for (const tag of post.tags ?? []) counter.set(tag, (counter.get(tag) ?? 0) + 1);
-		}
-		const entries = Array.from(counter.entries()).sort((a, b) => b[1] - a[1]);
-		const used = entries.length;
-		const orphans = entries.filter(([, count]) => count === 1).length;
-		const max = Math.max(1, ...entries.map(([, count]) => count));
-
-		if (entries.length === 0) {
-			box.innerHTML = `<p class="empty">还没有标签</p>`;
-		} else {
-			box.innerHTML = entries
-				.slice(0, 10)
-				.map(
-					([tag, count]) => `<div class="tagbar">
-						<span>${tag}</span>
-						<em><i data-w="${Math.round((count / max) * 100)}"></i></em>
-						<b>${count}</b>
-					</div>`,
-				)
-				.join("");
-			requestAnimationFrame(() => {
-				for (const bar of box.querySelectorAll<HTMLElement>("i[data-w]")) bar.style.width = `${bar.dataset.w}%`;
-			});
-		}
-
-		if (note) {
-			const avgPerPost = postsCache.length
-				? (entries.reduce((sum, [, count]) => sum + count, 0) / postsCache.length).toFixed(1)
-				: "0";
-			note.textContent = `${used} 个标签 · 每篇平均 ${avgPerPost} 个${orphans > 0 ? ` · ${orphans} 个只用过 1 次` : ""}`;
-		}
-	}
-
-	function renderSearches(data: Overview) {
-		const box = $("#searches");
-		const note = $("#search-note");
-		if (note) note.textContent = data.views.search.total > 0 ? `${data.range} 天内 ${fmtNum(data.views.search.total)} 次搜索` : "还没有人搜索过";
-		if (!box) return;
-		if (data.views.search.top.length === 0) {
-			box.innerHTML = `<li class="empty" style="display:block;border:0">还没有搜索记录</li>`;
-			return;
-		}
-		const max = Math.max(...data.views.search.top.map((row) => row.count));
-		box.innerHTML = data.views.search.top
-			.map(
-				(row, index) => `<li style="animation-delay:${index * 40}ms">
-					<span class="rank-no">${pad(index + 1)}</span>
-					<span class="rank-body">
-						<span class="rank-title">${row.keyword.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] ?? c)}</span>
-						<span class="rank-track"><i data-width="${Math.round((row.count / max) * 100)}"></i></span>
-					</span>
-					<span class="rank-count">${row.count}</span>
-				</li>`,
-			)
-			.join("");
-		requestAnimationFrame(() => {
-			requestAnimationFrame(() => {
-				for (const bar of box.querySelectorAll<HTMLElement>(".rank-track i")) bar.style.width = `${bar.dataset.width}%`;
-			});
-		});
-	}
-
-	function renderAiPaths(data: Overview) {
-		const box = $("#ai-paths");
-		if (!box) return;
-		if (data.ai.topPaths.length === 0) {
-			box.innerHTML = `<li class="empty" style="display:block;border:0">还没有提问记录</li>`;
-			return;
-		}
-		const max = Math.max(...data.ai.topPaths.map((row) => row.count));
-		box.innerHTML = data.ai.topPaths
-			.map((row, index) => {
-				const title = titles.get(row.path) ?? row.path;
-				return `<li style="animation-delay:${index * 40}ms">
-					<span class="rank-no">${pad(index + 1)}</span>
-					<span class="rank-body">
-						<a class="rank-title" href="${row.path}">${title}</a>
-						<span class="rank-track"><i data-width="${Math.round((row.count / max) * 100)}"></i></span>
-					</span>
-					<span class="rank-count">${row.count}</span>
-				</li>`;
-			})
-			.join("");
-		requestAnimationFrame(() => {
-			requestAnimationFrame(() => {
-				for (const bar of box.querySelectorAll<HTMLElement>(".rank-track i")) bar.style.width = `${bar.dataset.width}%`;
-			});
-		});
-	}
-
-	function renderLog(data: Overview) {		const box = $("#log");
+	/* ================= 提问记录 ================= */
+	function renderLog(data: Overview) {
+		const box = $("#log");
 		if (!box) return;
 		if (data.ai.recent.length === 0) {
-			box.innerHTML = `<li class="empty" style="display:block;border:0">还没有人问过</li>`;
+			box.innerHTML = `<li class="empty">还没有人问过</li>`;
 			return;
 		}
 		box.innerHTML = data.ai.recent
-			.map((item, index) => {
+			.map((item) => {
 				const date = new Date(item.ts);
 				const time = `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-				const meta = `${item.ms ? (item.ms / 1000).toFixed(1) + "s" : ""}${item.ok ? "" : " · 失败"}`;
-				return `<li style="animation-delay:${(index + 1) * 35}ms">
+				const meta = `${item.ms ? `${(item.ms / 1000).toFixed(1)}s` : ""}${item.ok ? "" : " · 失败"}`;
+				return `<li>
 					<span class="log-time">${time}</span>
-					<span class="log-q">${item.question.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] ?? c)}</span>
+					<span class="log-q">${esc(item.question)}</span>
 					<span class="log-meta ${item.ok ? "" : "bad"}">${meta}</span>
 				</li>`;
 			})
 			.join("");
 	}
 
+	/* ================= 汇总渲染 ================= */
+	function renderAll(data: Overview) {
+		renderKpis(data);
+		renderCombo(data);
+		renderGauge(data);
+		renderRose(data);
+		renderCalendar(data);
+		renderRings(data);
+		renderTags();
+		renderScatter(data);
+		renderRank("#ranking", data.views.top.slice(0, 8), "还没有数据，等有人访问后就会出现");
+		renderRank("#searches", data.views.search.top, "还没有搜索记录");
+		renderRank("#ai-paths", data.ai.topPaths, "还没有提问记录");
+		renderContent();
+		renderLog(data);
+
+		const searchNote = $("#search-note");
+		if (searchNote) {
+			searchNote.textContent =
+				data.views.search.total > 0 ? `${data.range} 天内 ${fmtNum(data.views.search.total)} 次搜索` : "还没有人搜索过";
+		}
+	}
+
+	let resizeTimer = 0;
+	window.addEventListener("resize", () => {
+		window.clearTimeout(resizeTimer);
+		resizeTimer = window.setTimeout(() => {
+			if (lastData) renderAll(lastData);
+		}, 220);
+	});
+
 	async function loadTitles() {
 		try {
-			const response = await fetch("/post-index.json");
-			postsCache = (await response.json()) as PostMeta[];
+			postsCache = (await (await fetch("/post-index.json")).json()) as PostMeta[];
 			titles = new Map(postsCache.map((post) => [post.url, post.title]));
 		} catch {
 			postsCache = [];
@@ -1389,22 +1823,16 @@ import Layout from "@layouts/Layout.astro";
 			return;
 		}
 
+		lastData = data;
 		showConsole(true);
-		renderLedger(data);
-		renderTrend(data);
-		renderRanking(data);
-		renderHours(data);
-		renderContent();
-		renderTags();
-		renderSearches(data);
-		renderAiPaths(data);
-		renderAi(data);
-		renderLog(data);
+		renderAll(data);
 
 		const stamp = $("#stamp");
 		if (stamp) {
 			const now = new Date();
-			stamp.textContent = `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())} · GMT+8`;
+			stamp.textContent = `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())} ${pad(now.getHours())}:${pad(
+				now.getMinutes(),
+			)} · GMT+8`;
 		}
 	}
 
