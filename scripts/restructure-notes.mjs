@@ -12,6 +12,7 @@ const DIR = "src/content/posts";
 const BACKUP = ".restyle-backup";
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry");
+const FORCE = args.includes("--force");
 const ONLY = args.includes("--only") ? args[args.indexOf("--only") + 1] : "";
 const LIMIT = args.includes("--limit") ? Number(args[args.indexOf("--limit") + 1]) : 0;
 
@@ -207,8 +208,8 @@ for (const file of files) {
 	if (!/^section:\s*note\s*$/m.test(raw)) continue;
 	const { front, body } = splitFront(raw);
 	const title = (front.match(/^title:\s*(.+)$/m) || [])[1]?.trim() ?? file;
-	if (ONLY && !title.includes(ONLY)) continue;
-	if (/^##\s/m.test(body)) {
+	if (ONLY && !ONLY.split(",").some((k) => title.includes(k.trim()))) continue;
+	if (!FORCE && /^##\s/m.test(body)) {
 		skipped++;
 		continue; // 已经重排过（LLM 版或已有小标题）
 	}
