@@ -656,6 +656,82 @@ if (window.swup) {
 </script>
 
 <script>
+// ---------------- Mermaid 图解渲染 ----------------
+// 只在页面里真的有 <pre class="mermaid"> 时才去动态加载 mermaid（体积大，别拖累普通文章）。
+let mermaidPromise: Promise<any> | null = null;
+let mermaidTheme = "";
+
+function loadMermaid() {
+	if (!mermaidPromise) {
+		mermaidPromise = import("mermaid").then((mod) => mod.default);
+	}
+	return mermaidPromise;
+}
+
+async function renderMermaid(force = false) {
+	const nodes = Array.from(document.querySelectorAll<HTMLElement>("pre.mermaid"));
+	if (nodes.length === 0) return;
+
+	const isDark = document.documentElement.classList.contains("dark");
+	const theme = isDark ? "dark" : "default";
+
+	let mermaid: any;
+	try {
+		mermaid = await loadMermaid();
+	} catch (err) {
+		console.error("[mermaid] 加载失败", err);
+		return;
+	}
+
+	if (mermaidTheme !== theme) {
+		mermaid.initialize({
+			startOnLoad: false,
+			theme,
+			securityLevel: "loose",
+			fontFamily: "inherit",
+			flowchart: { curve: "basis", padding: 12 },
+		});
+		mermaidTheme = theme;
+		force = true;
+	}
+
+	for (let i = 0; i < nodes.length; i++) {
+		const el = nodes[i];
+		if (!el.dataset.src) el.dataset.src = (el.textContent || "").trim();
+		if (el.dataset.rendered === "true" && !force) continue;
+		try {
+			const { svg } = await mermaid.render(`mmd-${theme}-${i}-${Date.now()}`, el.dataset.src);
+			el.innerHTML = svg;
+			el.dataset.rendered = "true";
+		} catch (err) {
+			console.error("[mermaid] 渲染失败", err);
+		}
+	}
+}
+
+function setupMermaid() {
+	void renderMermaid();
+	window.swup.hooks.on("page:view", () => {
+		window.setTimeout(() => void renderMermaid(), 0);
+	});
+
+	// 切换深色/浅色时重画（mermaid 把颜色写死在 svg 里）
+	let timer: number | undefined;
+	new MutationObserver(() => {
+		window.clearTimeout(timer);
+		timer = window.setTimeout(() => void renderMermaid(true), 120);
+	}).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+}
+
+if (window.swup) {
+	setupMermaid();
+} else {
+	document.addEventListener("swup:enable", setupMermaid);
+	void renderMermaid();
+}
+</script>
+
+<script>
 // ---------------- 题库目录即时筛选 ----------------
 // 和 giscus 一样放在 Layout：从别的页面 swup 过来时组件里的脚本不会重跑，
 // 只有 Page 级 Layout 脚本 + page:view 钩子才能每次都挂上。

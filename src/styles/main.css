@@ -150,3 +150,38 @@
     }
   }
 }
+/* ---------- Mermaid 图解（remark-mermaid 渲染出来的 <pre class="mermaid">） ---------- */
+.mermaid-wrap {
+    display: block;
+    text-align: center;
+    margin: 1.25rem 0;
+    padding: 0.5rem 0;
+    overflow-x: auto;
+}
+
+.custom-md pre.mermaid,
+pre.mermaid {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--primary);
+    white-space: pre;
+}
+
+.custom-md pre.mermaid svg,
+pre.mermaid svg {
+    max-width: 100%;
+    height: auto;
+    display: inline-block;
+}
+
+/* 图还没渲染出来时，别把源码铺满屏幕 */
+pre.mermaid:not([data-rendered]) {
+    max-height: 12rem;
+    overflow: hidden;
+    opacity: 0.5;
+}

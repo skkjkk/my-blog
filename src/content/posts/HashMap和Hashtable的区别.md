@@ -17,4 +17,6 @@ Hashtable 是遗留的老类，所有方法都用 synchronized 修饰，是**线
 
 最后是**继承关系与遍历方式**。Hashtable 继承的是已经废弃的 Dictionary 类，HashMap 继承 AbstractMap，两者都实现了 Map 接口。遍历时 HashMap 使用 Iterator 迭代器，Hashtable 除了迭代器还保留了旧的 Enumeration 方式。
 
+:::tip
 一句话总结：Hashtable 是线程安全但性能差、不允许 null 的遗留方案，HashMap 是性能好、允许 null 但需要外部保证线程安全的方案，并发场景请用 ConcurrentHashMap。
+:::

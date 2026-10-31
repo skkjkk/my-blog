@@ -11,6 +11,8 @@ const dark = flags.includes("--dark");
 const full = flags.includes("--full");
 const scrollFlag = flags.find((f) => f.startsWith("--scroll="));
 const scrollY = scrollFlag ? Number(scrollFlag.split("=")[1]) : 0;
+const waitFlag = flags.find((f) => f.startsWith("--wait="));
+const extraWait = waitFlag ? Number(waitFlag.split("=")[1]) : 0;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -64,6 +66,7 @@ if (dark) {
 	});
 	await sleep(600);
 }
+if (extraWait) { await sleep(extraWait); }
 if (scrollY) {
 	await send("Runtime.evaluate", { expression: `window.scrollTo(0, ${scrollY})` });
 	await sleep(800);
@@ -94,3 +97,4 @@ const { writeFileSync } = await import("node:fs");
 writeFileSync(out, Buffer.from(shot.data, "base64"));
 console.log(`saved ${out}`);
 ws.close();
+
