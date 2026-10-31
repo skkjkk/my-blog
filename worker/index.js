@@ -17,6 +17,8 @@
 
 // ---------------- 大模型 ----------------
 
+import { handleList } from "./comments.js";
+
 const DEFAULT_BASE_URL = "https://api.hcnsec.cn/v1/chat/completions";
 const DEFAULT_MODEL = "auto";
 const MAX_QUESTION = 300;
@@ -482,6 +484,11 @@ export default {
 			if (path === "/api/search-log") {
 				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
 				return handleSearchLog(request, env, ctx);
+			}
+
+			if (path === "/api/comments") {
+				if (request.method !== "GET") return json({ error: "只支持 GET" }, 405);
+				return handleList(request, env, ctx);
 			}
 
 			if (path === "/api/admin/login") {
