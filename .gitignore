@@ -57,3 +57,6 @@ yarn.lock
 .seed.sql
 .chrome-prof/
 
+
+# 笔记导入脚本留在仓库，源目录不进仓库
+
