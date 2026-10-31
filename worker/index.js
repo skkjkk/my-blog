@@ -17,7 +17,7 @@
 
 // ---------------- 大模型 ----------------
 
-import { handleCreate, handleList } from "./comments.js";
+import { handleCreate, handleList, handleReport } from "./comments.js";
 
 const DEFAULT_BASE_URL = "https://api.hcnsec.cn/v1/chat/completions";
 const DEFAULT_MODEL = "auto";
@@ -492,6 +492,11 @@ export default {
 				return json({ error: "只支持 GET / POST" }, 405);
 			}
 
+			if (path === "/api/comments/report") {
+				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				return handleReport(request, env, ctx);
+			}
+
 			if (path === "/api/admin/login") {
 				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
 				return handleLogin(request, env);
@@ -511,4 +516,5 @@ export default {
 		return env.ASSETS.fetch(request);
 	},
 };
+
 

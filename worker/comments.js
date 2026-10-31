@@ -171,6 +171,61 @@ export async function handleList(request, env, ctx) {
 
 export { LIMITS };
 
+// ---------------- 举报 ----------------
+
+export const REPORT_HOLD_THRESHOLD = 3;
+
+export function reportShouldHold(count) {
+	return Number(count) >= REPORT_HOLD_THRESHOLD;
+}
+
+export async function handleReport(request, env, ctx) {
+	if (!env?.DB) return jsonResponse({ error: "评论服务还没配置好（缺少数据库绑定）" }, 503);
+	if (!sameOrigin(request)) return jsonResponse({ error: "来源校验没通过" }, 403);
+
+	let body;
+	try {
+		body = await readLimitedJson(request);
+	} catch (error) {
+		return jsonResponse({ error: error.message }, error.status ?? 400);
+	}
+
+	const id = Number(body?.id);
+	if (!Number.isInteger(id) || id <= 0) return jsonResponse({ error: "没找到要举报的评论" }, 400);
+
+	const salt = (env.IP_SALT ?? "").trim() || "wkb-comments";
+	const ipHash = await hashIp(
+		request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for") ?? "unknown",
+		salt,
+	);
+
+	try {
+		await ensureCommentsSchema(env);
+		const target = await env.DB.prepare("SELECT id, status FROM comments WHERE id = ?").bind(id).first();
+		// 不存在 / 已删除：照样 200，不告诉对方"这条评论存不存在"
+		if (!target || target.status === "deleted") return jsonResponse({ ok: true });
+
+		const inserted = await env.DB
+			.prepare("INSERT OR IGNORE INTO comment_reports (comment_id, ip_hash, ts) VALUES (?, ?, ?)")
+			.bind(id, ipHash, new Date().toISOString())
+			.run();
+		const changed = Number(inserted?.meta?.changes ?? 0);
+		if (changed === 0) return jsonResponse({ ok: true });
+
+		await env.DB.prepare("UPDATE comments SET report_count = report_count + 1 WHERE id = ?").bind(id).run();
+		const row = await env.DB.prepare("SELECT report_count, status FROM comments WHERE id = ?").bind(id).first();
+		if (row && reportShouldHold(row.report_count) && row.status === "approved") {
+			await env.DB.prepare("UPDATE comments SET status = 'pending', updated_at = ? WHERE id = ?")
+				.bind(new Date().toISOString(), id)
+				.run();
+		}
+		return jsonResponse({ ok: true });
+	} catch (error) {
+		console.error("举报失败", error);
+		return jsonResponse({ error: "举报没成功，稍后再试", retryable: true }, 500);
+	}
+}
+
 // ---------------- 发表评论 ----------------
 
 function httpError(status, message) {
