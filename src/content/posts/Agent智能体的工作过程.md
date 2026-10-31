@@ -4,6 +4,7 @@ published: 2026-10-24
 description: "Agent 智能体的工作过程是一个\"感知 → 决策 → 执行 → 观察\"的循环，直到满足终止条件"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 Agent 智能体的工作过程是一个**"感知 → 决策 → 执行 → 观察"的循环**，直到满足终止条件。它与一次普通的模型调用最大的区别就在于**这个循环的存在**。

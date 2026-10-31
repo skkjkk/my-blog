@@ -4,6 +4,7 @@ published: 2026-10-29
 description: 深度分页指的是 LIMIT offset, size 中 offset 极大的场景（如第 50 万页）
 tags: [面试]
 category: 数据库
+section: note
 draft: false
 ---
 深度分页指的是 `LIMIT offset, size` 中 **offset 极大**的场景（如第 50 万页）。它的核心问题是：**数据库必须先扫描并丢弃掉 offset 行，才能返回那 size 行** —— 扫了 50 万行只给你 10 行，白白浪费。

@@ -11,6 +11,10 @@ const postsCollection = defineCollection({
 		tags: z.array(z.string()).optional().default([]),
 		category: z.string().optional().nullable().default(""),
 		lang: z.string().optional().default(""),
+		/** 内容分区：post = 文章/随笔（进首页资讯流），note = 笔记/题库（进 /notes/ 目录） */
+		section: z.enum(["post", "note"]).optional().default("post"),
+		/** 是否置顶到首页最上方 */
+		pinned: z.boolean().optional().default(false),
 
 		/* For internal use */
 		prevTitle: z.string().default(""),

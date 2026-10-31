@@ -4,6 +4,7 @@ published: 2026-10-29
 description: NIO 多路复用的核心是：用一个线程（Selector）去监视多个 I/O 通道（Channel）的就绪状态，一旦某个通道有事件（可读/可写/连接就绪），…
 tags: [基础, 面试]
 category: Java
+section: note
 draft: false
 ---
 NIO 多路复用的核心是：**用一个线程（Selector）去监视多个 I/O 通道（Channel）的就绪状态**，一旦某个通道有事件（可读/可写/连接就绪），就通知 CPU 调度该线程去处理 —— **用少量线程管理大量连接，避开 BIO 一个连接一个线程的模型**。

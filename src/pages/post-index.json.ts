@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { getSortedPosts } from "../utils/content-utils";
-import { getPostUrlBySlug } from "../utils/url-utils";
+import { getPostUrl } from "../utils/url-utils";
 import { formatDateToYYYYMMDD } from "../utils/date-utils";
 
 /**
@@ -13,7 +13,7 @@ export const GET: APIRoute = async () => {
 		.filter((post) => !post.data.draft)
 		.map((post) => ({
 			title: post.data.title,
-			url: getPostUrlBySlug(post.slug),
+			url: getPostUrl({ title: post.data.title, slug: post.slug }),
 			description: post.data.description ?? "",
 			tags: post.data.tags ?? [],
 			category: post.data.category ?? "",

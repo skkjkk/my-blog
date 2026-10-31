@@ -4,6 +4,7 @@ published: 2026-10-23
 description: MCP（Model Context Protocol，模型上下文协议）是一套开放协议，用于标准化 AI 应用与外部资源（数据、工具、提示模板）之间的连接方…
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 MCP（Model Context Protocol，模型上下文协议）是一套**开放协议**，用于标准化 AI 应用与外部资源（数据、工具、提示模板）之间的连接方式。它定义了客户端与服务器之间的通信规范、资源暴露方式、工具描述格式和提示模板机制，让不同的 AI 应用能够以统一方式接入各种数据源与工具，而不必为每个数据源单独写集成代码。

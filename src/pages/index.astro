@@ -1,0 +1,177 @@
+---
+import { Icon } from "astro-icon/components";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import { getSortedPosts } from "@utils/content-utils";
+import { formatDateToYYYYMMDD } from "@utils/date-utils";
+import { getNoteIndex } from "@utils/section-utils";
+import { getPostUrl, url } from "@utils/url-utils";
+
+const posts = await getSortedPosts();
+const published = posts.filter((post) => !post.data.draft);
+const pinned = published.filter((post) => post.data.pinned);
+const latest = published.filter((post) => !post.data.pinned).slice(0, 8);
+
+const noteIndex = await getNoteIndex();
+const noteWords = (noteIndex.words / 10000).toFixed(1);
+
+const monthDay = (date: Date) => formatDateToYYYYMMDD(date).slice(5);
+const words = (body: string | undefined) => (body ? body.trim().length : 0);
+---
+
+<MainGridLayout>
+    {/* ---------- 置顶 ---------- */}
+    {pinned.map((post, index) => (
+        <a
+            href={getPostUrl({ title: post.data.title, slug: post.slug })}
+            class="card-base group block px-6 md:px-9 py-7 mb-4 onload-animation"
+            style={`animation-delay: calc(var(--content-delay) + ${index * 60}ms)`}
+        >
+            <div class="flex items-center gap-2 mb-3">
+                <span class="text-[0.7rem] font-bold tracking-widest text-[var(--primary)]">PINNED</span>
+                <span class="h-[1px] flex-1 bg-[var(--line-divider)]"></span>
+            </div>
+            <div class="transition text-2xl md:text-3xl font-bold text-90 mb-3 group-hover:text-[var(--primary)]">
+                {post.data.title}
+            </div>
+            <div class="transition text-75 mb-4 line-clamp-2">{post.data.description}</div>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-30">
+                <span class="flex items-center gap-1.5">
+                    <Icon name="material-symbols:schedule-rounded" class="text-base" />
+                    {formatDateToYYYYMMDD(post.data.published)}
+                </span>
+                <span>{words(post.body)} 字</span>
+                {post.data.category && <span>{post.data.category}</span>}
+                <span class="flex items-center gap-1 font-bold text-[var(--primary)] ml-auto">
+                    阅读
+                    <Icon
+                        name="material-symbols:arrow-forward-rounded"
+                        class="text-base transition group-hover:translate-x-1"
+                    />
+                </span>
+            </div>
+        </a>
+    ))}
+
+    {/* ---------- 面试题库 ---------- */}
+    {noteIndex.total > 0 && (
+        <section class="mb-4 onload-animation" style="animation-delay: calc(var(--content-delay) + 100ms)">
+            <div class="flex items-end justify-between gap-4 mb-3 px-1">
+                <div>
+                    <h2 class="flex items-center gap-2 text-xl font-bold text-90">
+                        <Icon name="material-symbols:library-books-rounded" class="text-[1.4rem] text-[var(--primary)]" />
+                        面试题库
+                    </h2>
+                    <p class="text-sm text-50 mt-1">
+                        {noteIndex.total} 道题 · {noteIndex.categories.length} 个分类 · 约 {noteWords} 万字
+                    </p>
+                </div>
+                <a
+                    href={url("/notes/")}
+                    class="btn-plain group shrink-0 rounded-lg h-9 px-3 text-sm font-bold"
+                >
+                    <span class="flex items-center gap-1">
+                        总目录
+                        <Icon
+                            name="material-symbols:chevron-right-rounded"
+                            class="text-[1.25rem] transition group-hover:translate-x-0.5"
+                        />
+                    </span>
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {noteIndex.categories.map((category) => (
+                    <a
+                        href={`${url("/notes/")}#cat-${category.id}`}
+                        class="card-base group flex flex-col px-6 py-5"
+                    >
+                        <div class="flex items-baseline justify-between gap-3 mb-3">
+                            <div class="transition font-bold text-lg text-90 group-hover:text-[var(--primary)]">
+                                {category.name}
+                            </div>
+                            <div class="shrink-0 font-mono text-sm text-30">{category.count} 题</div>
+                        </div>
+                        <ul class="flex flex-col gap-1.5 mb-3">
+                            {category.recent.map((item) => (
+                                <li class="transition text-sm text-50 truncate group-hover:text-75">
+                                    {item.title}
+                                </li>
+                            ))}
+                        </ul>
+                        <div class="mt-auto flex items-center gap-1 text-xs font-bold text-[var(--primary)] opacity-0 group-hover:opacity-100 transition">
+                            查看这一类的全部题目
+                            <Icon name="material-symbols:chevron-right-rounded" class="text-base" />
+                        </div>
+                    </a>
+                ))}
+            </div>
+        </section>
+    )}
+
+    {/* ---------- 最近更新 ---------- */}
+    <section class="card-base mb-4 onload-animation" style="animation-delay: calc(var(--content-delay) + 150ms)">
+        <div class="flex items-center justify-between px-6 md:px-9 h-14">
+            <h2 class="flex items-center gap-2 font-bold text-90">
+                <Icon name="material-symbols:bolt-rounded" class="text-[1.4rem] text-[var(--primary)]" />
+                最近更新
+            </h2>
+            <a href={url("/archive/")} class="btn-plain group rounded-lg h-9 px-3 text-sm font-bold">
+                <span class="flex items-center gap-1">
+                    全部 {published.length} 篇
+                    <Icon
+                        name="material-symbols:chevron-right-rounded"
+                        class="text-[1.25rem] transition group-hover:translate-x-0.5"
+                    />
+                </span>
+            </a>
+        </div>
+        <div class="px-2 pb-3">
+            {latest.map((post) => (
+                <a
+                    href={getPostUrl({ title: post.data.title, slug: post.slug })}
+                    class="group flex items-center gap-3 md:gap-4 h-11 px-4 rounded-lg transition hover:bg-[var(--btn-plain-bg-hover)] active:bg-[var(--btn-plain-bg-active)]"
+                >
+                    <span class="shrink-0 font-mono text-sm text-30">{monthDay(post.data.published)}</span>
+                    <span class="flex-1 truncate text-75 font-bold transition group-hover:text-[var(--primary)] group-hover:translate-x-0.5">
+                        {post.data.title}
+                    </span>
+                    {post.data.category && (
+                        <span class="hidden sm:block shrink-0 text-xs text-30">{post.data.category}</span>
+                    )}
+                    <Icon
+                        name="material-symbols:chevron-right-rounded"
+                        class="shrink-0 text-[1.25rem] text-[var(--primary)] opacity-0 transition group-hover:opacity-100"
+                    />
+                </a>
+            ))}
+        </div>
+    </section>
+
+    {/* ---------- 快捷入口 ---------- */}
+    <div class="flex flex-wrap gap-3 onload-animation" style="animation-delay: calc(var(--content-delay) + 200ms)">
+        <a href={url("/notes/")} class="btn-card group h-11 px-5 rounded-xl text-sm font-bold">
+            <span class="flex items-center gap-2 text-75 transition group-hover:text-[var(--primary)]">
+                <Icon name="material-symbols:library-books-rounded" class="text-[1.25rem] text-[var(--primary)]" />
+                题库总目录
+            </span>
+        </a>
+        <a href={url("/archive/")} class="btn-card group h-11 px-5 rounded-xl text-sm font-bold">
+            <span class="flex items-center gap-2 text-75 transition group-hover:text-[var(--primary)]">
+                <Icon name="material-symbols:schedule-rounded" class="text-[1.25rem] text-[var(--primary)]" />
+                按时间归档
+            </span>
+        </a>
+        <a href={url("/about/")} class="btn-card group h-11 px-5 rounded-xl text-sm font-bold">
+            <span class="flex items-center gap-2 text-75 transition group-hover:text-[var(--primary)]">
+                <Icon name="material-symbols:notes-rounded" class="text-[1.25rem] text-[var(--primary)]" />
+                关于
+            </span>
+        </a>
+        <a href={url("/rss.xml")} class="btn-card group h-11 px-5 rounded-xl text-sm font-bold">
+            <span class="flex items-center gap-2 text-75 transition group-hover:text-[var(--primary)]">
+                <Icon name="fa6-solid:rss" class="text-[1rem] text-[var(--primary)]" />
+                RSS
+            </span>
+        </a>
+    </div>
+</MainGridLayout>

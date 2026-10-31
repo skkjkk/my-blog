@@ -4,6 +4,7 @@ published: 2026-10-24
 description: "Computer Use 是让模型能够直接操作图形界面（浏览器、桌面软件）的一类能力：模型通过\"看屏幕 → 想动作 → 做动作 → 再看屏幕\"的循环，代替…"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 Computer Use 是让模型**能够直接操作图形界面**（浏览器、桌面软件）的一类能力：模型通过"**看屏幕 → 想动作 → 做动作 → 再看屏幕**"的循环，代替人类完成点击、输入、滚动等 GUI 操作。它把 AI 的能力边界从"API 空间"扩展到"整个操作系统"。

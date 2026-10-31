@@ -41,6 +41,10 @@ export const siteConfig: SiteConfig = {
 export const navBarConfig: NavBarConfig = {
 	links: [
 		LinkPreset.Home,
+		{
+			name: "题库", // 面试笔记的总目录，见 src/pages/notes.astro
+			url: "/notes/",
+		},
 		LinkPreset.Archive,
 		LinkPreset.About,
 		{

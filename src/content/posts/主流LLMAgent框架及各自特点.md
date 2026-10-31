@@ -4,6 +4,7 @@ published: 2026-10-24
 description: 主流 LLM Agent 框架可以按抽象层次分为三类：面向最终用户的通用 Agent 产品、面向开发者的 Agent 框架、以及面向单个环节的工具库
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 主流 LLM Agent 框架可以按**抽象层次**分为三类：面向最终用户的通用 Agent 产品、面向开发者的 Agent 框架、以及面向单个环节的工具库。选型时先确定自己在哪一层。

@@ -4,6 +4,7 @@ published: 2026-10-24
 description: 死循环是 Agent 系统最常见的线上故障之一，表现为任务不结束、token 与费用持续上涨、或者在两个状态间反复横跳
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 死循环是 Agent 系统最常见的线上故障之一，表现为任务不结束、token 与费用持续上涨、或者在两个状态间反复横跳。它的本质是**终止条件与进展检测缺失**，而不是模型"笨"。

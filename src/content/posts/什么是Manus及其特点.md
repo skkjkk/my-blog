@@ -4,6 +4,7 @@ published: 2026-10-24
 description: Manus 是一款通用的 AI Agent 产品（面向终端用户，用户通过自然语言下达任务，Agent 自主完成并交付结果），由 2023 年成立于中国的团…
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 Manus 是一款**通用的 AI Agent 产品**（面向终端用户，用户通过自然语言下达任务，Agent 自主完成并交付结果），由 2023 年成立于中国的团队 Monaci AI 开发，2024 年正式对外发布，被广泛视为"通用 Agent"这一产品形态的代表作之一。

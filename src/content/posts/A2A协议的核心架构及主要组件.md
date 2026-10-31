@@ -4,6 +4,7 @@ published: 2026-10-24
 description: A2A（Agent2Agent）是 Google 发起并捐赠给开源基金会的Agent 间通信协议，让独立部署、可能由不同团队甚至不同厂商维护的 Agent…
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 A2A（Agent2Agent）是 Google 发起并捐赠给开源基金会的**Agent 间通信协议**，让**独立部署、可能由不同团队甚至不同厂商维护的 Agent** 能够相互发现、协商与协作完成单个 Agent 无法完成的任务。

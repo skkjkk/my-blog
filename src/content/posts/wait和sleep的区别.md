@@ -4,6 +4,7 @@ published: 2026-10-23
 description: 这两个方法最核心的区别是对锁的处理方式不同，其次才是所属类、调用约束和线程状态。 首先，sleep 是 Thread 类的静态方法，作用于当前正在执行的线…
 tags: [并发编程, 面试]
 category: Java
+section: note
 draft: false
 ---
 这两个方法最核心的区别是**对锁的处理方式不同**，其次才是所属类、调用约束和线程状态。

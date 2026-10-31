@@ -4,6 +4,7 @@ published: 2026-10-22
 description: HashCode 的核心作用是为对象生成一个哈希值，让基于哈希结构的数据结构能够在 O(1) 时间内定位元素
 tags: [集合, 面试]
 category: Java
+section: note
 draft: false
 ---
 HashCode 的核心作用是为对象生成一个哈希值，让基于哈希结构的数据结构能够在 O(1) 时间内定位元素。在 HashMap 当中，键的 hashCode 参与计算，决定了这个键最终落在哪个哈希桶里；配合桶内的链表或红黑树比较，从而把查找、插入、删除的平均复杂度维持在常数级别。HashSet 的底层就是 HashMap，所以同样依赖 hashCode。

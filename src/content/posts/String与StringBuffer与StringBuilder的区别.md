@@ -4,6 +4,7 @@ published: 2026-10-22
 description: "这三个类最根本的区别在于可不可变以及线程安全性。 String 是不可变类，它的字符数据一旦创建就不能修改，任何所谓的\"修改\"操作，本质上都是返回了一个新…"
 tags: [基础, 面试]
 category: Java
+section: note
 draft: false
 ---
 这三个类最根本的区别在于**可不可变**以及**线程安全性**。

@@ -4,6 +4,7 @@ published: 2026-10-22
 description: HashMap 和 Hashtable 最主要的区别是线程安全性和对 null 的支持
 tags: [集合, 面试]
 category: Java
+section: note
 draft: false
 ---
 HashMap 和 Hashtable 最主要的区别是**线程安全性**和**对 null 的支持**。

@@ -4,6 +4,7 @@ published: 2026-10-24
 description: 一个 LLM Agent 的基本架构可以拆成五个组成部分加上贯穿其间的运行时控制。 1) 大模型（LLM） —— 系统的决策核心与推理引擎
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 一个 LLM Agent 的基本架构可以拆成五个组成部分加上贯穿其间的运行时控制。

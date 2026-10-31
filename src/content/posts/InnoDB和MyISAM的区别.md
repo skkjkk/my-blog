@@ -4,6 +4,7 @@ published: 2026-10-29
 description: InnoDB 是 MySQL 5.5 之后的默认存储引擎，MyISAM 是遗留引擎
 tags: [面试]
 category: 数据库
+section: note
 draft: false
 ---
 InnoDB 是 MySQL 5.5 之后的**默认存储引擎**，MyISAM 是遗留引擎。两者的核心差异可以概括为一句话：**InnoDB 面向"写入与并发"，MyISAM 面向"只读与查询"。**

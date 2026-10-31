@@ -4,6 +4,7 @@ published: 2026-10-24
 description: A2A 的工作原理可以用一句话概括：每个 Agent 通过一张 Agent Card 公开自己的能力，通过 Task 把协作状态托管在服务端，通过流式更新…
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 A2A 的工作原理可以用一句话概括：**每个 Agent 通过一张 Agent Card 公开自己的能力，通过 Task 把协作状态托管在服务端，通过流式更新暴露过程，通过 Artifact 交付成果。**

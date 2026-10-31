@@ -1,5 +1,6 @@
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
+import { postUrlSlug } from "@utils/post-slug";
 
 export function pathsEqual(path1: string, path2: string) {
 	const normalizedPath1 = path1.replace(/^\/|\/$/g, "").toLowerCase();
@@ -12,6 +13,12 @@ function joinUrl(...parts: string[]): string {
 	return joined.replace(/\/+/g, "/");
 }
 
+/** 文章链接：传 { title, slug } 会自动换成英文 URL 段（见 src/data/post-slugs.ts） */
+export function getPostUrl(post: { title?: string; slug?: string }): string {
+	return url(`/posts/${postUrlSlug(post)}/`);
+}
+
+/** 已有最终 URL 段时用这个 */
 export function getPostUrlBySlug(slug: string): string {
 	return url(`/posts/${slug}/`);
 }

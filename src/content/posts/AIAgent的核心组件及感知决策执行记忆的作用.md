@@ -4,6 +4,7 @@ published: 2026-10-23
 description: "Agent 系统的核心组件可以按\"感知、决策、执行、记忆\"四个能力来划分，加上贯穿其中的工具层与运行时控制层"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 Agent 系统的核心组件可以按"感知、决策、执行、记忆"四个能力来划分，加上贯穿其中的**工具层**与**运行时控制层**。

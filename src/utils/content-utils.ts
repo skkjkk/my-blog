@@ -1,6 +1,7 @@
 import { type CollectionEntry, getCollection } from "astro:content";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
+import { postUrlSlug } from "@utils/post-slug";
 import { getCategoryUrl } from "@utils/url-utils.ts";
 
 // // Retrieve posts and sort them by publication date
@@ -21,11 +22,17 @@ export async function getSortedPosts() {
 	const sorted = await getRawSortedPosts();
 
 	for (let i = 1; i < sorted.length; i++) {
-		sorted[i].data.nextSlug = sorted[i - 1].slug;
+		sorted[i].data.nextSlug = postUrlSlug({
+			title: sorted[i - 1].data.title,
+			slug: sorted[i - 1].slug,
+		});
 		sorted[i].data.nextTitle = sorted[i - 1].data.title;
 	}
 	for (let i = 0; i < sorted.length - 1; i++) {
-		sorted[i].data.prevSlug = sorted[i + 1].slug;
+		sorted[i].data.prevSlug = postUrlSlug({
+			title: sorted[i + 1].data.title,
+			slug: sorted[i + 1].slug,
+		});
 		sorted[i].data.prevTitle = sorted[i + 1].data.title;
 	}
 

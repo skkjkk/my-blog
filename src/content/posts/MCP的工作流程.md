@@ -4,6 +4,7 @@ published: 2026-10-24
 description: "MCP 的工作流程可以按\"一次工具调用\"和\"一次完整会话\"两个尺度来看。 1) 连接与初始化阶段"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 MCP 的工作流程可以按"**一次工具调用**"和"**一次完整会话**"两个尺度来看。

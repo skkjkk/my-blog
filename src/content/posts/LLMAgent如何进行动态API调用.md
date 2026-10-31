@@ -4,6 +4,7 @@ published: 2026-10-24
 description: 动态 API 调用指 Agent 在运行时根据任务需要发现、选择并调用 API，而不是把要调用的接口在代码里写死
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 动态 API 调用指 Agent 在运行时**根据任务需要发现、选择并调用 API**，而不是把要调用的接口在代码里写死。它是 Agent 从"演示"走向"能干活"的关键能力。

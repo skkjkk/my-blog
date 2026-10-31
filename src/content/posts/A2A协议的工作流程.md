@@ -4,6 +4,7 @@ published: 2026-10-24
 description: "A2A 的工作流程可以分成六个阶段，核心是\"发现 → 匹配 → 委托 → 跟进 → 交付\""
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 A2A 的工作流程可以分成六个阶段，核心是"**发现 → 匹配 → 委托 → 跟进 → 交付**"。

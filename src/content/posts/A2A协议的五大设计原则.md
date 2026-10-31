@@ -4,6 +4,7 @@ published: 2026-10-24
 description: A2A 的设计原则可以概括为五条，它们共同决定了协议为什么长成现在这个样子。 1) 能力导向而非方案导向（Capability-based, not pr…
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 A2A 的设计原则可以概括为五条，它们共同决定了协议为什么长成现在这个样子。

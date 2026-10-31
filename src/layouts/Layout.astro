@@ -656,6 +656,68 @@ if (window.swup) {
 </script>
 
 <script>
+// ---------------- 题库目录即时筛选 ----------------
+// 和 giscus 一样放在 Layout：从别的页面 swup 过来时组件里的脚本不会重跑，
+// 只有 Page 级 Layout 脚本 + page:view 钩子才能每次都挂上。
+function setupNotesFilter() {
+	const input = document.querySelector<HTMLInputElement>("#notes-filter");
+	if (!input || input.dataset.bound === "true") return;
+	input.dataset.bound = "true";
+
+	const countEl = document.querySelector<HTMLElement>("#notes-count");
+	const emptyEl = document.querySelector<HTMLElement>("#notes-empty");
+	const items = Array.from(document.querySelectorAll<HTMLElement>("[data-note-item]"));
+	const groups = Array.from(document.querySelectorAll<HTMLElement>("[data-note-group]"));
+	const cats = Array.from(document.querySelectorAll<HTMLElement>("[data-note-cat]"));
+	const total = items.length;
+
+	const apply = (raw: string) => {
+		const q = raw.trim().toLowerCase();
+		let shown = 0;
+		for (const el of items) {
+			const hit = !q || (el.dataset.q ?? "").includes(q);
+			el.classList.toggle("hidden", !hit);
+			if (hit) shown++;
+		}
+		for (const group of groups) {
+			group.classList.toggle("hidden", !group.querySelector("[data-note-item]:not(.hidden)"));
+		}
+		for (const cat of cats) {
+			cat.classList.toggle("hidden", !cat.querySelector("[data-note-item]:not(.hidden)"));
+		}
+		emptyEl?.classList.toggle("hidden", shown !== 0);
+		if (countEl) countEl.textContent = q ? `${shown} / ${total}` : String(total);
+	};
+
+	input.addEventListener("input", () => apply(input.value));
+	input.addEventListener("keydown", (event) => {
+		if (event.key === "Escape") {
+			input.value = "";
+			apply("");
+		}
+	});
+
+	const initial = new URLSearchParams(window.location.search).get("q");
+	if (initial) input.value = initial;
+	apply(input.value);
+}
+
+function setupNotes() {
+	setupNotesFilter();
+	window.swup.hooks.on("page:view", () => {
+		window.setTimeout(setupNotesFilter, 0);
+	});
+}
+
+if (window.swup) {
+	setupNotes();
+} else {
+	document.addEventListener("swup:enable", setupNotes);
+	setupNotesFilter();
+}
+</script>
+
+<script>
 // ---------------- 访问统计上报 ----------------
 // 只上报路径，不发 IP、不发 Cookie 内容；后台页面不上报。
 let lastHitPath = "";

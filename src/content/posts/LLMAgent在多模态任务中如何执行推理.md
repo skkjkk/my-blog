@@ -4,6 +4,7 @@ published: 2026-10-24
 description: 多模态 Agent 的推理与纯文本 Agent 的本质差别在于：输入不再是单一文本，而是多种模态的组合
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 多模态 Agent 的推理与纯文本 Agent 的本质差别在于：**输入不再是单一文本，而是多种模态的组合**；模型要同时完成"**看懂**"与"**决定下一步看什么/做什么**"两件事。

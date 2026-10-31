@@ -4,6 +4,7 @@ published: 2026-10-22
 description: "Java 的优势可以从几个层面来回答。 第一是跨平台，这是它最根本的优势。 Java 编译出来的不是机器码而是字节码，由 JVM 负责解释执行，因此遵循\"…"
 tags: [基础, 面试]
 category: Java
+section: note
 draft: false
 ---
 Java 的优势可以从几个层面来回答。

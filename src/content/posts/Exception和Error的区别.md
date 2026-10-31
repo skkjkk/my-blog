@@ -4,6 +4,7 @@ published: 2026-10-22
 description: Exception 和 Error 都继承自 Throwable，区别在于它们表示的问题性质不同：Exception 表示程序可以预期和处理的异常情况，E…
 tags: [基础, 面试]
 category: Java
+section: note
 draft: false
 ---
 Exception 和 Error 都继承自 Throwable，区别在于**它们表示的问题性质不同**：Exception 表示程序可以预期和处理的异常情况，Error 表示 JVM 或系统层面的严重错误，程序通常无法也不应该去处理。

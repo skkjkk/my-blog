@@ -4,6 +4,7 @@ published: 2026-10-23
 description: EXPLAIN 用于查看一条 SQL 的执行计划，也就是优化器打算怎么执行这条语句，是 SQL 调优的第一诊断工具
 tags: [面试]
 category: 数据库
+section: note
 draft: false
 ---
 `EXPLAIN` 用于查看一条 SQL 的**执行计划**，也就是优化器打算怎么执行这条语句，是 SQL 调优的第一诊断工具。

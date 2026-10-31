@@ -4,6 +4,7 @@ published: 2026-10-23
 description: 并发库中的实现分两类：核心类 ThreadPoolExecutor（通用底座，参数全暴露）、ScheduledThreadPoolExecutor（继承前…
 tags: [并发编程, 面试]
 category: Java
+section: note
 draft: false
 ---
 并发库中的实现分两类：核心类 `ThreadPoolExecutor`（通用底座，参数全暴露）、`ScheduledThreadPoolExecutor`（继承前者，额外支持延迟与周期执行）、`ForkJoinPool`（工作窃取，不实现 `ExecutorService`）；以及 `Executors` 提供的 5 种开箱即用配置，本质上都是前两者的不同参数组合。

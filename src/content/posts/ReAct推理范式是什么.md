@@ -4,6 +4,7 @@ published: 2026-10-23
 description: "ReAct 是 \"Reasoning + Acting\" 的缩写，指让模型交替进行推理和行动：先想一步（Thought），再做一个动作（Action，比如…"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 ReAct 是 "Reasoning + Acting" 的缩写，指让模型**交替进行推理和行动**：先想一步（Thought），再做一个动作（Action，比如调用工具），拿到观察结果（Observation）后继续想，如此往复，直到给出最终答案。核心思想是把"想"和"做"交织在同一条轨迹里，让每一步动作都基于最新的真实反馈，而不是靠模型内部一次性规划到底。

@@ -4,6 +4,7 @@ published: 2026-10-24
 description: Google ADK（Agent Development Kit）是 Google 推出的开源 Agent 开发框架，2025 年发布，是 Google …
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 Google ADK（Agent Development Kit）是 Google 推出的**开源 Agent 开发框架**，2025 年发布，是 Google Cloud 与 Gemini 生态中的 Agent 体系核心组件，也是 **A2A 协议的原生实现方**。

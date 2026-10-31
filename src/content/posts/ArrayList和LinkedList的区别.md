@@ -4,6 +4,7 @@ published: 2026-10-22
 description: ArrayList 和 LinkedList 都实现了 List 接口，区别主要体现在底层数据结构上
 tags: [集合, 面试]
 category: Java
+section: note
 draft: false
 ---
 ArrayList 和 LinkedList 都实现了 List 接口，区别主要体现在底层数据结构上。ArrayList 底层是**动态数组**，元素在内存中连续存放；LinkedList 底层是**双向链表**，每个节点保存元素本身以及前后两个节点的引用。

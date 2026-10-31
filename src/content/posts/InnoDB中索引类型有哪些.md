@@ -4,6 +4,7 @@ published: 2026-10-29
 description: "InnoDB 支持 6 种索引类型，但真正日常用的是前两种。面试时按\"数据结构\"分类最清晰"
 tags: [面试]
 category: 数据库
+section: note
 draft: false
 ---
 InnoDB 支持 **6 种索引类型**，但真正日常用的是前两种。**面试时按"数据结构"分类最清晰**。

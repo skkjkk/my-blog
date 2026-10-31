@@ -5,6 +5,7 @@ description: 第一篇文章。顺便说明这个博客怎么用、后台在哪�
 tags: [开始, 说明]
 category: 站务
 draft: false
+pinned: true
 ---
 
 这是一篇示例文章，可以直接改掉或删掉。下面简单说三件事。

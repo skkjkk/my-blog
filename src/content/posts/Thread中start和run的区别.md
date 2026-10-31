@@ -4,6 +4,7 @@ published: 2026-10-22
 description: start() 和 run() 最核心的区别在于是否创建新线程。start() 会向 JVM 申请创建一个新线程，由这个新线程去执行 run()，调用之后…
 tags: [并发编程, 面试]
 category: Java
+section: note
 draft: false
 ---
 `start()` 和 `run()` 最核心的区别在于是否创建新线程。`start()` 会向 JVM 申请创建一个新线程，由这个新线程去执行 `run()`，调用之后立即返回，主线程继续往下走；而 `run()` 只是一个普通实例方法，谁调用它就在谁的线程里同步执行，不产生任何新线程，也不会有异步效果。

@@ -4,6 +4,7 @@ published: 2026-10-23
 description: SQL 调优是一个自上而下的过程，顺序很重要：先看执行计划找问题，再改 SQL 或索引，最后才考虑改架构
 tags: [面试]
 category: 数据库
+section: note
 draft: false
 ---
 SQL 调优是一个**自上而下**的过程，顺序很重要：先看执行计划找问题，再改 SQL 或索引，最后才考虑改架构。常见的手段有以下几类。

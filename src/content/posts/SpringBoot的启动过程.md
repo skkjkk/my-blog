@@ -4,6 +4,7 @@ published: 2026-10-29
 description: Spring Boot 的启动本质上是创建一个 Spring 容器（ApplicationContext）并加载其中所有 Bean、触发其生命周期回调的过…
 tags: [基础, 面试]
 category: Java
+section: note
 draft: false
 ---
 Spring Boot 的启动本质上是**创建一个 Spring 容器（ApplicationContext）并加载其中所有 Bean、触发其生命周期回调的过程**。它是在 Spring 的基础上，用**自动装配 + 内嵌服务器 + 外部化配置 + 运维端点**四件事把启动过程"简化"了。

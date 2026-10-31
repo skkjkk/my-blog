@@ -4,6 +4,7 @@ published: 2026-10-29
 description: TCP 和 UDP 是传输层的两种协议，核心区别在于是否提供可靠、面向连接、流量受控的字节流传输
 tags: [面试]
 category: 计算机网络
+section: note
 draft: false
 ---
 TCP 和 UDP 是传输层的两种协议，核心区别在于**是否提供可靠、面向连接、流量受控的字节流传输**。TCP 是"可靠但有开销"，UDP 是"快但不管"。

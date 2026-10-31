@@ -4,6 +4,7 @@ published: 2026-10-23
 description: Agent Card 是 A2A 协议中定义的机器可读的能力描述文件，通常是放在 Agent 服务端点约定路径下的一份 JSON 文档（类似 /.well…
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 Agent Card 是 A2A 协议中定义的**机器可读的能力描述文件**，通常是放在 Agent 服务端点约定路径下的一份 JSON 文档（类似 `/.well-known/agent-card.json`），对外公开声明"我是谁、我能做什么、怎么找我、需要什么凭证"。

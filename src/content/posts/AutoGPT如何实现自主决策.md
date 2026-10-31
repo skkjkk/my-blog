@@ -4,6 +4,7 @@ published: 2026-10-24
 description: "AutoGPT 是 2023 年引爆\"自主 Agent\"概念的代表性开源项目。它的核心机制是把 LLM 放进一个\"思考—行动—观察\"的循环里，并让它自己决…"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 AutoGPT 是 2023 年引爆"自主 Agent"概念的代表性开源项目。它的核心机制是**把 LLM 放进一个"思考—行动—观察"的循环里，并让它自己决定下一步做什么**，同时配套了一整套让 Agent 能在真实环境中干活的工程外壳。

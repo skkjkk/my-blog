@@ -4,6 +4,7 @@ published: 2026-10-23
 description: Object 是所有类的父类，它提供的方法分为三类：通用方法、对象相等与哈希、以及类型与状态相关的方法
 tags: [基础, 面试]
 category: Java
+section: note
 draft: false
 ---
 `Object` 是所有类的父类，它提供的方法分为三类：通用方法、对象相等与哈希、以及类型与状态相关的方法。

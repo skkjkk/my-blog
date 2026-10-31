@@ -4,6 +4,7 @@ published: 2026-10-29
 description: "结论：IOC 先，AOP 后。 AOP 代理是在 Bean \"创建并注入完成之后\"才被包装上去的 —— AOP 是对已就绪的 Bean 做增强包装，而不是…"
 tags: [基础, 面试]
 category: Java
+section: note
 draft: false
 ---
 **结论：IOC 先，AOP 后。** AOP 代理是在 Bean "**创建并注入完成之后**"才被包装上去的 —— AOP 是对已就绪的 Bean 做增强包装，而不是先织入再创建。

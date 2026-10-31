@@ -4,6 +4,7 @@ published: 2026-10-23
 description: 两者是不同层次的东西：Function Calling 是模型接口层的机制，MCP 是应用与工具之间的协议层
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 两者是**不同层次**的东西：Function Calling 是**模型接口层**的机制，MCP 是**应用与工具之间**的协议层。它们的区别不是"竞争关系"，而是"上下层关系" —— MCP 内部完全可以基于 Function Calling 实现。

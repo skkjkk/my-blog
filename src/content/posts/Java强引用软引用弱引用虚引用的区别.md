@@ -4,6 +4,7 @@ published: 2026-10-29
 description: 这四种引用是 JVM 对对象可达性的分级表示，决定了GC 在什么条件下可以回收该对象
 tags: [JVM, 面试]
 category: Java
+section: note
 draft: false
 ---
 这四种引用是 JVM 对**对象可达性**的分级表示，决定了**GC 在什么条件下可以回收该对象**。强弱顺序是：**强 > 软 > 弱 > 虚**，每降一级，GC 就更容易回收它。

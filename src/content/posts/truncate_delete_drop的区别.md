@@ -4,6 +4,7 @@ published: 2026-10-29
 description: 三者的区别集中在四个维度：是否删除数据、是否重置自增 ID、是否回收空间、是否可回滚
 tags: [面试]
 category: 数据库
+section: note
 draft: false
 ---
 三者的区别集中在**四个维度：是否删除数据、是否重置自增 ID、是否回收空间、是否可回滚**。

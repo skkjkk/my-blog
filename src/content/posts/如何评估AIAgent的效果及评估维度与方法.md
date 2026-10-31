@@ -4,6 +4,7 @@ published: 2026-10-24
 description: "Agent 的评估比模型评估复杂得多，因为它评估的不只是\"答得好不好\"，而是\"过程是否有效\""
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 Agent 的评估比模型评估复杂得多，因为**它评估的不只是"答得好不好"，而是"过程是否有效"**。一套完整的评估体系应该包含四个层次。

@@ -4,6 +4,7 @@ published: 2026-10-24
 description: 子 Agent 模式指：主 Agent（父）把某个子任务整体委托给一个独立的 Agent（子）执行，子 Agent 有自己独立的上下文、提示和工具集，只把…
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 子 Agent 模式指：**主 Agent（父）把某个子任务整体委托给一个独立的 Agent（子）执行**，子 Agent 有自己独立的上下文、提示和工具集，只把**结论**返回给父 Agent。这本质上是用"**上下文隔离**"换取"**结构复杂度**"。

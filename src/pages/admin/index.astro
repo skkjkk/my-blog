@@ -261,12 +261,12 @@ import Layout from "@layouts/Layout.astro";
 	}
 
 	/* ---------- 登录 ---------- */
-	.gate {
+	.dash .gate {
 		min-height: calc(100vh - 3rem);
 		display: grid;
 		place-items: center;
 	}
-	.gate-card {
+	.dash .gate-card {
 		width: min(23rem, 100%);
 		background: var(--card);
 		border-radius: var(--radius-large);
@@ -274,11 +274,11 @@ import Layout from "@layouts/Layout.astro";
 		text-align: center;
 		box-shadow: 0 10px 30px -18px rgba(0, 0, 0, 0.28);
 	}
-	html.dark .gate-card {
+	html.dark .dash .gate-card {
 		box-shadow: none;
 		border: 1px solid var(--line);
 	}
-	.gate-lock {
+	.dash .gate-lock {
 		display: grid;
 		place-items: center;
 		width: 2.6rem;
@@ -288,27 +288,27 @@ import Layout from "@layouts/Layout.astro";
 		background: var(--field);
 		color: var(--btn-content);
 	}
-	.gate-lock svg {
+	.dash .gate-lock svg {
 		width: 1.25rem;
 		height: 1.25rem;
 	}
-	.gate-card h1 {
+	.dash .gate-card h1 {
 		font-size: 1.3rem;
 		font-weight: 700;
 		letter-spacing: 0.02em;
 	}
-	.gate-card > p {
+	.dash .gate-card > p {
 		margin-top: 0.5rem;
 		font-size: 0.78rem;
 		line-height: 1.75;
 		color: var(--ink-3);
 	}
-	.gate-form {
+	.dash .gate-form {
 		display: flex;
 		gap: 0.5rem;
 		margin-top: 1.4rem;
 	}
-	.gate-form input {
+	.dash .gate-form input {
 		flex: 1;
 		min-width: 0;
 		background: var(--field);
@@ -321,14 +321,14 @@ import Layout from "@layouts/Layout.astro";
 		outline: none;
 		transition: border-color 0.18s ease;
 	}
-	.gate-form input:focus {
+	.dash .gate-form input:focus {
 		border-color: var(--primary);
 	}
-	.gate-form input::placeholder {
+	.dash .gate-form input::placeholder {
 		color: var(--ink-3);
 		letter-spacing: 0.02em;
 	}
-	.gate-form button {
+	.dash .gate-form button {
 		flex: none;
 		border: 0;
 		border-radius: 0.7rem;
@@ -340,15 +340,15 @@ import Layout from "@layouts/Layout.astro";
 		cursor: pointer;
 		transition: filter 0.18s ease;
 	}
-	.gate-form button:hover {
+	.dash .gate-form button:hover {
 		filter: brightness(1.06);
 	}
-	.gate-error {
+	.dash .gate-error {
 		margin-top: 0.9rem !important;
 		font-size: 0.78rem !important;
 		color: var(--down) !important;
 	}
-	.gate-back {
+	.dash .gate-back {
 		display: inline-block;
 		margin-top: 1.5rem;
 		font-size: 0.75rem;
@@ -356,16 +356,16 @@ import Layout from "@layouts/Layout.astro";
 		text-decoration: none;
 		transition: color 0.18s ease;
 	}
-	.gate-back:hover {
+	.dash .gate-back:hover {
 		color: var(--primary);
 	}
 
 	/* ---------- 顶栏 ---------- */
-	#console {
+	.dash #console {
 		max-width: 76rem;
 		margin: 0 auto;
 	}
-	.topbar {
+	.dash .topbar {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
@@ -373,12 +373,12 @@ import Layout from "@layouts/Layout.astro";
 		gap: 0.75rem;
 		margin-bottom: 0.9rem;
 	}
-	.brand {
+	.dash .brand {
 		display: flex;
 		align-items: center;
 		gap: 0.6rem;
 	}
-	.brand-mark {
+	.dash .brand-mark {
 		display: grid;
 		place-items: center;
 		width: 2.3rem;
@@ -389,30 +389,30 @@ import Layout from "@layouts/Layout.astro";
 		font-weight: 700;
 		font-size: 1rem;
 	}
-	.brand-text h1 {
+	.dash .brand-text h1 {
 		font-size: 1.05rem;
 		font-weight: 700;
 		line-height: 1.2;
 	}
-	.brand-text p {
+	.dash .brand-text p {
 		margin-top: 0.15rem;
 		font-size: 0.68rem;
 		color: var(--ink-3);
 		font-variant-numeric: tabular-nums;
 	}
-	.toolbar {
+	.dash .toolbar {
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
 		flex-wrap: wrap;
 	}
-	.seg {
+	.dash .seg {
 		display: inline-flex;
 		padding: 0.15rem;
 		border-radius: 0.65rem;
 		background: var(--field);
 	}
-	.seg button {
+	.dash .seg button {
 		border: 0;
 		background: transparent;
 		color: var(--ink-2);
@@ -423,20 +423,20 @@ import Layout from "@layouts/Layout.astro";
 		cursor: pointer;
 		transition: all 0.16s ease;
 	}
-	.seg button:hover {
+	.dash .seg button:hover {
 		color: var(--ink-1);
 	}
-	.seg button.is-active {
+	.dash .seg button.is-active {
 		background: var(--card);
 		color: var(--primary);
 		font-weight: 500;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
 	}
-	html.dark .seg button.is-active {
+	html.dark .dash .seg button.is-active {
 		box-shadow: none;
 		background: var(--btn-regular-bg-hover);
 	}
-	.btn {
+	.dash .btn {
 		display: inline-flex;
 		align-items: center;
 		border: 0;
@@ -450,13 +450,13 @@ import Layout from "@layouts/Layout.astro";
 		cursor: pointer;
 		transition: all 0.16s ease;
 	}
-	.btn:hover {
+	.dash .btn:hover {
 		background: var(--btn-regular-bg-hover);
 		color: var(--ink-1);
 	}
 
 	/* ---------- 卡片 ---------- */
-	.card {
+	.dash .card {
 		grid-column: 1 / -1;
 		background: var(--card);
 		border-radius: var(--radius-large);
@@ -465,18 +465,18 @@ import Layout from "@layouts/Layout.astro";
 		min-width: 0;
 		animation: rise 0.45s cubic-bezier(0.22, 0.68, 0.28, 1) both;
 	}
-	html.dark .card {
+	html.dark .dash .card {
 		box-shadow: none;
 		background: var(--card-bg);
 	}
 	/* 手机先按单列排，宽屏再切成 12 栅格 */
-	.grid {
+	.dash .grid {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
 		gap: 0.85rem;
 		margin-top: 0.85rem;
 	}
-	.card-head {
+	.dash .card-head {
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
@@ -484,14 +484,14 @@ import Layout from "@layouts/Layout.astro";
 		margin-bottom: 0.7rem;
 		flex-wrap: wrap;
 	}
-	.card-head h2 {
+	.dash .card-head h2 {
 		font-size: 0.86rem;
 		font-weight: 700;
 		letter-spacing: 0.01em;
 		position: relative;
 		padding-left: 0.6rem;
 	}
-	.card-head h2::before {
+	.dash .card-head h2::before {
 		content: "";
 		position: absolute;
 		left: 0;
@@ -502,19 +502,19 @@ import Layout from "@layouts/Layout.astro";
 		border-radius: 1rem;
 		background: var(--primary);
 	}
-	.card-note {
+	.dash .card-note {
 		font-size: 0.7rem;
 		color: var(--ink-3);
 		font-variant-numeric: tabular-nums;
 	}
 
 	/* ---------- KPI ---------- */
-	.kpi-grid {
+	.dash .kpi-grid {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 0.85rem;
 	}
-	.kpi {
+	.dash .kpi {
 		background: var(--card);
 		border-radius: var(--radius-large);
 		padding: 0.85rem 0.9rem 0.5rem;
@@ -523,17 +523,17 @@ import Layout from "@layouts/Layout.astro";
 		min-width: 0;
 		animation: rise 0.45s cubic-bezier(0.22, 0.68, 0.28, 1) both;
 	}
-	html.dark .kpi {
+	html.dark .dash .kpi {
 		box-shadow: none;
 	}
-	.kpi-label {
+	.dash .kpi-label {
 		font-size: 0.7rem;
 		color: var(--ink-3);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	.kpi-value {
+	.dash .kpi-value {
 		margin-top: 0.3rem !important;
 		font-size: 1.55rem;
 		font-weight: 700;
@@ -542,14 +542,14 @@ import Layout from "@layouts/Layout.astro";
 		font-variant-numeric: tabular-nums;
 		color: var(--ink-1);
 	}
-	.kpi-value em {
+	.dash .kpi-value em {
 		font-style: normal;
 		font-size: 0.72rem;
 		font-weight: 500;
 		color: var(--ink-3);
 		margin-left: 0.15rem;
 	}
-	.kpi-extra {
+	.dash .kpi-extra {
 		margin-top: 0.2rem !important;
 		font-size: 0.68rem;
 		color: var(--ink-3);
@@ -559,13 +559,13 @@ import Layout from "@layouts/Layout.astro";
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	.kpi-extra .up {
+	.dash .kpi-extra .up {
 		color: var(--up);
 	}
-	.kpi-extra .down {
+	.dash .kpi-extra .down {
 		color: var(--down);
 	}
-	.spark {
+	.dash .spark {
 		display: block;
 		width: 100%;
 		height: 26px;
@@ -573,80 +573,80 @@ import Layout from "@layouts/Layout.astro";
 	}
 
 	/* ---------- 图表通用 ---------- */
-	.chart {
+	.dash .chart {
 		display: block;
 		width: 100%;
 		overflow: visible;
 	}
-	.chart .ax {
+	.dash .chart .ax {
 		font-size: 10px;
 		fill: var(--ink-3);
 		font-family: inherit;
 	}
-	.chart .ax-r {
+	.dash .chart .ax-r {
 		font-size: 9.5px;
 		fill: var(--alt);
 	}
-	.chart .gl {
+	.dash .chart .gl {
 		stroke: var(--grid);
 		stroke-width: 1;
 	}
-	.chart .bar {
+	.dash .chart .bar {
 		fill: var(--c2);
 		transition: opacity 0.15s ease;
 	}
-	.chart .bar:hover {
+	.dash .chart .bar:hover {
 		fill: var(--c1);
 	}
-	.chart .num {
+	.dash .chart .num {
 		font-size: 10px;
 		fill: var(--ink-3);
 		font-family: inherit;
 		font-variant-numeric: tabular-nums;
 	}
-	.legend {
+	.dash .legend {
 		display: flex;
 		gap: 0.9rem;
 		margin-bottom: 0.35rem;
 		font-size: 0.68rem;
 		color: var(--ink-3);
 	}
-	.legend span {
+	.dash .legend span {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.3rem;
 	}
-	.legend i {
+	.dash .legend i {
 		width: 0.55rem;
 		height: 0.55rem;
 		border-radius: 0.15rem;
 	}
-	.rose {
+	.dash .rose {
 		max-width: 264px;
 		margin: 0 auto;
 	}
 	/* 卡片高度被同行拉长时，让图垂直居中 */
-	.card.col {
+	.dash .card.col {
 		display: flex;
 		flex-direction: column;
 	}
-	.card.col > .chart {
+	.dash .card.col > .chart {
 		margin-block: auto;
 	}
 
 	/* ---------- 日历热力图 ---------- */
-	.cal-board {
+	.dash .cal-board {
 		display: grid;
 		grid-template-columns: 0.85rem repeat(20, minmax(0, 1fr));
 		grid-auto-rows: auto;
 		gap: 3px;
 	}
-	.cal {
+	.dash .cal {
 		border-radius: 2px;
 		background: var(--line-soft);
 		aspect-ratio: 1;
 	}
-	.cal.dow {
+	.dash .cal.dow {
 		background: transparent;
 		display: grid;
 		place-items: center;
@@ -654,22 +654,22 @@ import Layout from "@layouts/Layout.astro";
 		color: var(--ink-3);
 		line-height: 1;
 	}
-	.cal.lv0 {
+	.dash .cal.lv0 {
 		background: var(--line-soft);
 	}
-	.cal.lv1 {
+	.dash .cal.lv1 {
 		background: var(--c6);
 	}
-	.cal.lv2 {
+	.dash .cal.lv2 {
 		background: var(--c3);
 	}
-	.cal.lv3 {
+	.dash .cal.lv3 {
 		background: var(--c2);
 	}
-	.cal.lv4 {
+	.dash .cal.lv4 {
 		background: var(--c1);
 	}
-	.cal-legend {
+	.dash .cal-legend {
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
@@ -678,27 +678,27 @@ import Layout from "@layouts/Layout.astro";
 		font-size: 0.6rem;
 		color: var(--ink-3);
 	}
-	.cal-legend .cal {
+	.dash .cal-legend .cal {
 		width: 0.6rem;
 		aspect-ratio: 1;
 	}
-	.cal-legend span {
+	.dash .cal-legend span {
 		margin: 0 0.15rem;
 	}
 
 	/* ---------- 同心环 ---------- */
-	.rings {
+	.dash .rings {
 		max-width: 176px;
 		margin: 0 auto;
 	}
-	.ring-legend {
+	.dash .ring-legend {
 		list-style: none;
 		display: flex;
 		flex-direction: column;
 		gap: 0.3rem;
 		margin-top: 0.4rem !important;
 	}
-	.ring-legend li {
+	.dash .ring-legend li {
 		display: flex;
 		align-items: center;
 		gap: 0.35rem;
@@ -707,13 +707,13 @@ import Layout from "@layouts/Layout.astro";
 		border-top: 1px solid var(--line-soft);
 		padding-top: 0.3rem;
 	}
-	.ring-legend i {
+	.dash .ring-legend i {
 		flex: none;
 		width: 0.5rem;
 		height: 0.5rem;
 		border-radius: 1rem;
 	}
-	.ring-legend b {
+	.dash .ring-legend b {
 		margin-left: auto;
 		font-size: 0.78rem;
 		font-weight: 500;
@@ -722,17 +722,17 @@ import Layout from "@layouts/Layout.astro";
 	}
 
 	/* ---------- 环形 ---------- */
-	.donut-wrap {
+	.dash .donut-wrap {
 		display: flex;
 		align-items: center;
 		gap: 0.6rem;
 	}
-	.donut {
+	.dash .donut {
 		flex: none;
 		width: 7.2rem;
 		height: 7.2rem;
 	}
-	.donut-legend {
+	.dash .donut-legend {
 		flex: 1;
 		list-style: none;
 		min-width: 0;
@@ -740,7 +740,7 @@ import Layout from "@layouts/Layout.astro";
 		flex-direction: column;
 		gap: 0.22rem;
 	}
-	.donut-legend li {
+	.dash .donut-legend li {
 		display: flex;
 		align-items: center;
 		gap: 0.3rem;
@@ -748,48 +748,48 @@ import Layout from "@layouts/Layout.astro";
 		color: var(--ink-2);
 		line-height: 1.5;
 	}
-	.donut-legend i {
+	.dash .donut-legend i {
 		flex: none;
 		width: 0.5rem;
 		height: 0.5rem;
 		border-radius: 0.15rem;
 	}
-	.donut-legend b {
+	.dash .donut-legend b {
 		margin-left: auto;
 		font-weight: 500;
 		color: var(--ink-3);
 		font-variant-numeric: tabular-nums;
 	}
-	.donut-legend span {
+	.dash .donut-legend span {
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
 	/* ---------- 排行 ---------- */
-	.rank {
+	.dash .rank {
 		list-style: none;
 		display: flex;
 		flex-direction: column;
 		gap: 0.42rem;
 	}
-	.rank li {
+	.dash .rank li {
 		display: grid;
 		grid-template-columns: 1.1rem minmax(0, 1fr) auto;
 		align-items: center;
 		gap: 0.45rem;
 		font-size: 0.76rem;
 	}
-	.rank-no {
+	.dash .rank-no {
 		font-size: 0.62rem;
 		color: var(--ink-3);
 		font-variant-numeric: tabular-nums;
 	}
-	.rank-body {
+	.dash .rank-body {
 		display: block;
 		min-width: 0;
 	}
-	.rank-title {
+	.dash .rank-title {
 		display: block;
 		color: var(--ink-1);
 		text-decoration: none;
@@ -798,10 +798,10 @@ import Layout from "@layouts/Layout.astro";
 		text-overflow: ellipsis;
 		line-height: 1.4;
 	}
-	.rank-title:hover {
+	.dash .rank-title:hover {
 		color: var(--primary);
 	}
-	.rank-track {
+	.dash .rank-track {
 		display: block;
 		height: 4px;
 		margin-top: 3px;
@@ -809,7 +809,7 @@ import Layout from "@layouts/Layout.astro";
 		background: var(--line-soft);
 		overflow: hidden;
 	}
-	.rank-track i {
+	.dash .rank-track i {
 		display: block;
 		height: 100%;
 		width: 0;
@@ -817,36 +817,36 @@ import Layout from "@layouts/Layout.astro";
 		background: linear-gradient(90deg, var(--c3), var(--c1));
 		transition: width 0.7s cubic-bezier(0.22, 0.68, 0.28, 1);
 	}
-	.rank-count {
+	.dash .rank-count {
 		font-size: 0.72rem;
 		color: var(--ink-2);
 		font-variant-numeric: tabular-nums;
 	}
 
 	/* ---------- 事实列表 ---------- */
-	.facts {
+	.dash .facts {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 0.45rem 0.6rem;
 		margin-top: 0.6rem !important;
 	}
-	.facts.two {
+	.dash .facts.two {
 		grid-template-columns: repeat(4, minmax(0, 1fr));
 		margin-top: 0.8rem !important;
 	}
-	.facts > div {
+	.dash .facts > div {
 		border-top: 1px solid var(--line-soft);
 		padding-top: 0.3rem;
 		min-width: 0;
 	}
-	.facts dt {
+	.dash .facts dt {
 		font-size: 0.65rem;
 		color: var(--ink-3);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	.facts dd {
+	.dash .facts dd {
 		margin-top: 0.1rem !important;
 		font-size: 0.84rem;
 		font-weight: 500;
@@ -856,13 +856,13 @@ import Layout from "@layouts/Layout.astro";
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	.chips {
+	.dash .chips {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.3rem;
 		margin-top: 0.55rem;
 	}
-	.chip {
+	.dash .chip {
 		display: inline-flex;
 		align-items: baseline;
 		gap: 0.25rem;
@@ -873,26 +873,26 @@ import Layout from "@layouts/Layout.astro";
 		color: var(--ink-2);
 		max-width: 100%;
 	}
-	.chip b {
+	.dash .chip b {
 		font-weight: 500;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.chip span {
+	.dash .chip span {
 		color: var(--ink-3);
 		font-variant-numeric: tabular-nums;
 	}
 
 	/* ---------- 月度柱 ---------- */
-	.months {
+	.dash .months {
 		display: grid;
 		grid-template-columns: repeat(8, minmax(0, 1fr));
 		gap: 0.35rem;
 		height: 5.4rem;
 		align-items: end;
 	}
-	.month {
+	.dash .month {
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
@@ -900,14 +900,14 @@ import Layout from "@layouts/Layout.astro";
 		height: 100%;
 		gap: 0.15rem;
 	}
-	.month b {
+	.dash .month b {
 		font-size: 0.62rem;
 		font-weight: 500;
 		color: var(--ink-2);
 		font-variant-numeric: tabular-nums;
 		height: 0.8rem;
 	}
-	.month i {
+	.dash .month i {
 		display: block;
 		width: 100%;
 		max-width: 1.6rem;
@@ -916,21 +916,21 @@ import Layout from "@layouts/Layout.astro";
 		background: linear-gradient(180deg, var(--c1), var(--c3));
 		transition: height 0.7s cubic-bezier(0.22, 0.68, 0.28, 1);
 	}
-	.month span {
+	.dash .month span {
 		font-size: 0.58rem;
 		color: var(--ink-3);
 		white-space: nowrap;
 	}
 
 	/* ---------- 提问记录 ---------- */
-	.log {
+	.dash .log {
 		list-style: none;
 		display: flex;
 		flex-direction: column;
 		max-height: 22rem;
 		overflow-y: auto;
 	}
-	.log li {
+	.dash .log li {
 		display: grid;
 		grid-template-columns: 6.4rem minmax(0, 1fr) auto;
 		align-items: baseline;
@@ -939,28 +939,28 @@ import Layout from "@layouts/Layout.astro";
 		border-top: 1px solid var(--line-soft);
 		font-size: 0.75rem;
 	}
-	.log li:first-child {
+	.dash .log li:first-child {
 		border-top: 0;
 	}
-	.log-time {
+	.dash .log-time {
 		font-size: 0.66rem;
 		color: var(--ink-3);
 		font-variant-numeric: tabular-nums;
 	}
-	.log-q {
+	.dash .log-q {
 		color: var(--ink-1);
 		overflow-wrap: anywhere;
 	}
-	.log-meta {
+	.dash .log-meta {
 		font-size: 0.64rem;
 		color: var(--ink-3);
 		font-variant-numeric: tabular-nums;
 	}
-	.log-meta.bad {
+	.dash .log-meta.bad {
 		color: var(--down);
 	}
 
-	.empty {
+	.dash .empty {
 		display: block;
 		padding: 1.1rem 0;
 		font-size: 0.74rem;
@@ -968,7 +968,7 @@ import Layout from "@layouts/Layout.astro";
 		text-align: center;
 	}
 
-	.foot {
+	.dash .foot {
 		margin-top: 1.2rem;
 		text-align: center;
 		font-size: 0.66rem;
@@ -988,27 +988,27 @@ import Layout from "@layouts/Layout.astro";
 
 	/* ---------- 响应式（移动优先） ---------- */
 	@media (min-width: 34rem) {
-		.kpi-grid {
+		.dash .kpi-grid {
 			grid-template-columns: repeat(3, minmax(0, 1fr));
 		}
 	}
 	@media (min-width: 57rem) {
-		.grid {
+		.dash .grid {
 			grid-template-columns: repeat(12, minmax(0, 1fr));
 		}
-		.span-4 {
+		.dash .span-4 {
 			grid-column: span 4;
 		}
-		.span-6 {
+		.dash .span-6 {
 			grid-column: span 6;
 		}
-		.span-8 {
+		.dash .span-8 {
 			grid-column: span 8;
 		}
-		.kpi-grid {
+		.dash .kpi-grid {
 			grid-template-columns: repeat(4, minmax(0, 1fr));
 		}
-		.facts.two {
+		.dash .facts.two {
 			grid-template-columns: repeat(4, minmax(0, 1fr));
 		}
 	}
@@ -1016,33 +1016,33 @@ import Layout from "@layouts/Layout.astro";
 		.dash {
 			padding: 0.85rem 0.7rem 3rem;
 		}
-		.kpi-grid {
+		.dash .kpi-grid {
 			gap: 0.6rem;
 		}
-		.kpi-value {
+		.dash .kpi-value {
 			font-size: 1.3rem;
 		}
-		.cal-board {
+		.dash .cal-board {
 			grid-template-columns: 0.7rem repeat(20, minmax(0, 1fr));
 			gap: 2px;
 		}
-		.log li {
+		.dash .log li {
 			grid-template-columns: minmax(0, 1fr) auto;
 		}
-		.log-time {
+		.dash .log-time {
 			grid-column: 1 / -1;
 			order: -1;
 		}
-		.donut-wrap {
+		.dash .donut-wrap {
 			flex-direction: column;
 			align-items: stretch;
 		}
-		.donut {
+		.dash .donut {
 			width: 8.4rem;
 			height: 8.4rem;
 			margin: 0 auto;
 		}
-		.brand-text p {
+		.dash .brand-text p {
 			display: none;
 		}
 	}

@@ -4,6 +4,7 @@ published: 2026-10-23
 description: "多 Agent 编排模式可按\"谁决策、怎么串、怎么并行\"三个维度划分，每种模式在稳定性、延迟与成本上各有取舍"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 多 Agent 编排模式可按"**谁决策、怎么串、怎么并行**"三个维度划分，每种模式在稳定性、延迟与成本上各有取舍。

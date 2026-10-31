@@ -4,6 +4,7 @@ published: 2026-10-23
 description: "拒绝策略是 ThreadPoolExecutor 在\"无法接收新任务\"时（队列已满且线程数已达上限）所采取的兜底行为，通过构造参数传入，共有四种内置实现"
 tags: [并发编程, 面试]
 category: Java
+section: note
 draft: false
 ---
 拒绝策略是 `ThreadPoolExecutor` 在"无法接收新任务"时（队列已满且线程数已达上限）所采取的兜底行为，通过构造参数传入，共有四种内置实现。

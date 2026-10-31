@@ -4,6 +4,7 @@ published: 2026-10-24
 description: "MCP 的安全模型可以分成五个层面，但必须先说清一个前提：MCP 本身只提供\"连接与能力描述的标准化\"，它不提供安全保证"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 MCP 的安全模型可以分成**五个层面**，但必须先说清一个前提：**MCP 本身只提供"连接与能力描述的标准化"，它不提供安全保证**。安全仍然要由 Host 侧与 Server 侧各自承担。

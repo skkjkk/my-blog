@@ -4,6 +4,7 @@ published: 2026-10-29
 description: 这是两个问题：第一问是 TCP 协议层如何做到可靠传输，第二问是 Java Socket 如何在应用层使用 TCP
 tags: [面试]
 category: 计算机网络
+section: note
 draft: false
 ---
 这是两个问题：**第一问是 TCP 协议层如何做到可靠传输**，**第二问是 Java Socket 如何在应用层使用 TCP**。核心结论先给：**TCP 提供的是"可靠的有序字节流"，但"可靠"有边界；Java Socket 是 TCP 的应用层封装，它提供连接抽象，但不替你解决超时、重连、粘包、并发写这些工程问题。**

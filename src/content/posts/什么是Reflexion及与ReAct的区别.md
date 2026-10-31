@@ -4,6 +4,7 @@ published: 2026-10-23
 description: "Reflexion 是一种给 Agent 加入\"自我反思与试错学习\"机制的范式。它在 ReAct 的基础上增加了第三种输出类型：Reflection（反思…"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 Reflexion 是一种给 Agent 加入**"自我反思与试错学习"**机制的范式。它在 ReAct 的基础上增加了第三种输出类型：**Reflection（反思）** —— 在任务执行过程中或失败之后，模型对刚才的行为做一次归因分析，把经验写进外部记忆，下一次尝试时把这段经验作为额外上下文带入，从而实现**跨轮次、跨任务的自我改进**。

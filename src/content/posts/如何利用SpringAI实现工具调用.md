@@ -4,6 +4,7 @@ published: 2026-10-24
 description: "工具调用（Tool Calling / Function Calling）是指模型不直接输出答案，而是输出一个结构化的\"调用哪个工具、参数是什么\"的请求，…"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 工具调用（Tool Calling / Function Calling）是指模型不直接输出答案，而是输出一个**结构化的"调用哪个工具、参数是什么"的请求**，由宿主程序真正执行后把结果回传，模型再基于结果继续输出。**模型只表达意图，执行权始终在程序手里。**

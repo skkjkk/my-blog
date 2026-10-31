@@ -4,6 +4,7 @@ published: 2026-10-24
 description: "从零设计 Agent 框架，我不会一开始就做\"多 Agent 编排\"，而是按依赖顺序优先实现下面六个模块"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 从零设计 Agent 框架，我不会一开始就做"多 Agent 编排"，而是按**依赖顺序**优先实现下面六个模块。理由是：编排是上层建筑，而**上下文、状态、终止、工具安全**这四件事是所有上层能力的地基，缺一个上层都会塌。

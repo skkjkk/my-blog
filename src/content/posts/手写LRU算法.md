@@ -4,6 +4,7 @@ published: 2026-10-29
 description: LRU（Least Recently Used）是淘汰策略：当缓存满了需要腾出空间时，淘汰最久未被使用的那一项
 tags: [面试]
 category: 算法与数据结构
+section: note
 draft: false
 ---
 LRU（Least Recently Used）是**淘汰策略**：当缓存满了需要腾出空间时，淘汰**最久未被使用**的那一项。判断"最近"的标准是**访问时刻**（读和写都算使用）。

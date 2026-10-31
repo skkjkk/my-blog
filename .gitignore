@@ -60,3 +60,10 @@ yarn.lock
 
 # 笔记导入脚本留在仓库，源目录不进仓库
 
+
+# 本地调试（续）
+.chrome-profile/
+.probe*.js
+.slug-progress.json
+.preview.log
+.preview.err.log

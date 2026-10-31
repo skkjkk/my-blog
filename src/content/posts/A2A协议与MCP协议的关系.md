@@ -4,6 +4,7 @@ published: 2026-10-24
 description: A2A 与 MCP 是互补而非替代的关系，它们解决的是 Agent 生态中两个不同方向的问题：MCP 是纵向的（应用 ↔ 工具与数据），A2A 是横向的（…
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 A2A 与 MCP 是**互补而非替代**的关系，它们解决的是 Agent 生态中两个**不同方向**的问题：**MCP 是纵向的（应用 ↔ 工具与数据），A2A 是横向的（Agent ↔ Agent）**。

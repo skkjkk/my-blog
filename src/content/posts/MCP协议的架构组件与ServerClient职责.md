@@ -4,6 +4,7 @@ published: 2026-10-23
 description: MCP 采用 Host–Client–Server 三层架构，规范建立在 JSON-RPC 2.0 之上
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 MCP 采用 **Host–Client–Server** 三层架构，规范建立在 **JSON-RPC 2.0** 之上。

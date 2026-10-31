@@ -4,6 +4,7 @@ published: 2026-10-23
 description: 两者都是 Java 的互斥锁，都保证同一时刻只有一个线程能进入临界区，区别主要在实现机制、灵活性与能力边界上
 tags: [并发编程, 面试]
 category: Java
+section: note
 draft: false
 ---
 两者都是 Java 的互斥锁，都保证同一时刻只有一个线程能进入临界区，区别主要在实现机制、灵活性与能力边界上。

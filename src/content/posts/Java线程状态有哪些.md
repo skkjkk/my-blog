@@ -4,6 +4,7 @@ published: 2026-10-22
 description: Java 线程在 java.lang.Thread.State 中被定义为六种状态，分别是 NEW、RUNNABLE、BLOCKED、WAITING、TI…
 tags: [并发编程, 面试]
 category: Java
+section: note
 draft: false
 ---
 Java 线程在 `java.lang.Thread.State` 中被定义为六种状态，分别是 NEW、RUNNABLE、BLOCKED、WAITING、TIMED_WAITING 和 TERMINATED。

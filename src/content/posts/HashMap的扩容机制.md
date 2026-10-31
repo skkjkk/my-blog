@@ -4,6 +4,7 @@ published: 2026-10-28
 description: "HashMap 的扩容是\"桶扩容 + 链表拆分（而非重新计算 hash）\" 的过程"
 tags: [集合, 面试]
 category: Java
+section: note
 draft: false
 ---
 HashMap 的扩容是**"桶扩容 + 链表拆分（而非重新计算 hash）"** 的过程。它是 JDK 8 相对 JDK 7 最重要的改动之一，核心目的是**避免扩容时的并发问题**并**减少扩容代价**。

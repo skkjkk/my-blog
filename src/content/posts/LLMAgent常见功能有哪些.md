@@ -4,6 +4,7 @@ published: 2026-10-24
 description: "LLM Agent 的常见功能可以按\"能力形态\"归为九类，每一类都有明确的实现要点与典型场景"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 LLM Agent 的常见功能可以按"**能力形态**"归为九类，每一类都有明确的实现要点与典型场景。

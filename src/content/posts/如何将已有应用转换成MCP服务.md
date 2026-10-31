@@ -4,6 +4,7 @@ published: 2026-10-24
 description: "把已有应用变成 MCP Server，本质是在现有能力外面加一层协议适配，把\"业务函数\"翻译成\"带描述与 schema 的工具\""
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 把已有应用变成 MCP Server，本质是**在现有能力外面加一层协议适配**，把"业务函数"翻译成"带描述与 schema 的工具"。核心工作量不在协议，而在**把接口语义讲清楚**。

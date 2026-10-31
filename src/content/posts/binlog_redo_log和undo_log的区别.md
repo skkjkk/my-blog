@@ -4,6 +4,7 @@ published: 2026-10-29
 description: "三者是 MySQL 三大日志，分别服务不同层、解决不同问题。一句话概括：redo log 管\"崩溃恢复\"（保证持久性），undo log 管\"事务回滚\"（…"
 tags: [面试]
 category: 数据库
+section: note
 draft: false
 ---
 三者是 MySQL 三大日志，**分别服务不同层、解决不同问题**。一句话概括：**redo log 管"崩溃恢复"（保证持久性），undo log 管"事务回滚"（保证原子性），binlog 管"主从复制与数据同步"（保证扩展性）。**

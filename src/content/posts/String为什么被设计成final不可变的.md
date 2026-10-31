@@ -4,6 +4,7 @@ published: 2026-10-27
 description: String 被声明为 final 是为了保证不可变性，而不可变性是 Java 语言层面刻意设计的核心特性
 tags: [基础, 面试]
 category: Java
+section: note
 draft: false
 ---
 `String` 被声明为 `final` 是为了**保证不可变性**，而不可变性是 Java 语言层面刻意设计的核心特性。它带来的收益远大于"子类化 String"这个几乎没人真正需要的能力。

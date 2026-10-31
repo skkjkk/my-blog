@@ -4,6 +4,7 @@ published: 2026-10-29
 description: Linux 命令可按用途分为九类。下面列出面试与日常开发中最常用的一批，重点说明用途与常见用法，而不是罗列参数
 tags: [面试]
 category: 操作系统
+section: note
 draft: false
 ---
 Linux 命令可按用途分为九类。下面列出面试与日常开发中最常用的一批，重点说明**用途与常见用法**，而不是罗列参数。

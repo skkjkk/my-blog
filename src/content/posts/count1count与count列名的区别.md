@@ -4,6 +4,7 @@ published: 2026-10-29
 description: 三者的返回值完全相同（都是行数），差别只在执行方式与性能。结论先给：性能上 COUNT() ≥ COUNT(1) > COUNT(列名)，但这个差距在 I…
 tags: [面试]
 category: 数据库
+section: note
 draft: false
 ---
 三者的**返回值完全相同**（都是行数），差别只在**执行方式与性能**。结论先给：**性能上 `COUNT(*)` ≥ `COUNT(1)` > `COUNT(列名)`**，但这个差距**在 InnoDB 上几乎不存在**。

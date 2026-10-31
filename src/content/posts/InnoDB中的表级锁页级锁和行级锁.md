@@ -4,6 +4,7 @@ published: 2026-10-29
 description: InnoDB 的锁按粒度分三层：表级锁（意向锁为主）、页级锁、行级锁。核心结论：InnoDB 的并发能力来自行级锁
 tags: [面试]
 category: 数据库
+section: note
 draft: false
 ---
 InnoDB 的锁**按粒度分三层：表级锁（意向锁为主）、页级锁、行级锁**。核心结论：**InnoDB 的并发能力来自行级锁；表级锁是"表结构层的锁"，不是"数据行的锁"** —— 这也是最容易被误解的地方。

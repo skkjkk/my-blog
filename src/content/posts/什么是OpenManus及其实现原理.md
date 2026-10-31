@@ -4,6 +4,7 @@ published: 2026-10-24
 description: OpenManus 是一个开源的通用 AI Agent 框架（2025 年由 Manus 社区的开源复现项目发起），目标是在开源环境下复现 Manus 那…
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 OpenManus 是一个**开源的通用 AI Agent 框架**（2025 年由 Manus 社区的开源复现项目发起），目标是在开源环境下复现 Manus 那类"**通用任务执行 + 交付成品**"的 Agent 形态。理解它最好的方式是**把它与 Manus 对照**。

@@ -4,6 +4,7 @@ published: 2026-10-23
 description: "Agent Loop 是驱动 Agent 持续工作的循环骨架：模型反复地\"感知当前状态 → 思考下一步 → 产生动作 → 观察动作结果 → 更新状态\"，直…"
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 Agent Loop 是驱动 Agent 持续工作的**循环骨架**：模型反复地"感知当前状态 → 思考下一步 → 产生动作 → 观察动作结果 → 更新状态"，直到满足终止条件。它是所有 Agent 框架的公共内核，ReAct、Reflexion、规划-执行等范式都是在它之上做变体。

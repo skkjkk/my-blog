@@ -4,6 +4,7 @@ published: 2026-10-23
 description: AQS（AbstractQueuedSynchronizer）是 java.util.concurrent.locks 下的同步器框架，JUC 中几乎所有…
 tags: [并发编程, 面试]
 category: Java
+section: note
 draft: false
 ---
 AQS（AbstractQueuedSynchronizer）是 `java.util.concurrent.locks` 下的**同步器框架**，JUC 中几乎所有锁和同步器（`ReentrantLock`、`ReentrantReadWriteLock`、`Semaphore`、`CountDownLatch`）都基于它实现。它的核心是"**把同步状态的管理与线程的排队阻塞分离**"：子类只管定义"什么时候可以获取/释放"，排队、阻塞、唤醒由框架统一完成。

@@ -4,6 +4,7 @@ published: 2026-10-23
 description: "两者的定位是纵向与横向互补：MCP 让 Agent 拥有\"工具\"，A2A 让 Agent 拥有\"同事\""
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 两者的定位是**纵向与横向互补**：MCP 让 Agent 拥有"工具"，A2A 让 Agent 拥有"同事"。一个成熟的多 Agent 系统里，**每个 Agent 同时扮演两个角色** —— 作为 MCP Client 使用工具与数据，作为 A2A Server 对外暴露自己的专业能力。

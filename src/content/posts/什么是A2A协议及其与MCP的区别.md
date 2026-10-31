@@ -4,6 +4,7 @@ published: 2026-10-23
 description: A2A（Agent2Agent）是由 Google 发起并逐渐成为社区标准的Agent 间通信协议，用于让独立的、可能由不同团队开发、部署在不同厂商基础设…
 tags: [面试]
 category: Agent与LLM应用
+section: note
 draft: false
 ---
 A2A（Agent2Agent）是由 Google 发起并逐渐成为社区标准的**Agent 间通信协议**，用于让**独立的、可能由不同团队开发、部署在不同厂商基础设施上的 Agent 相互发现、协商与协作完成任务**。MCP 解决的是"Agent 如何接入工具与数据"，A2A 解决的是"Agent 如何与另一个 Agent 协作"。
