@@ -65,5 +65,8 @@ yarn.lock
 .chrome-profile/
 .probe*.js
 .slug-progress.json
+.restyle-backup/
+.restyle-preview/
+.restyle-report.json
 .preview.log
 .preview.err.log
