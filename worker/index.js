@@ -18,6 +18,14 @@
 // ---------------- 大模型 ----------------
 
 import { handleCreate, handleList, handleReport } from "./comments.js";
+import {
+	handleAdminAction,
+	handleAdminKeywords,
+	handleAdminList,
+	handleAdminReply,
+	handleAdminSettings,
+} from "./comments-admin.js";
+import { adminCookieValue, isAdmin, safeEqual } from "./lib/admin.js";
 
 const DEFAULT_BASE_URL = "https://api.hcnsec.cn/v1/chat/completions";
 const DEFAULT_MODEL = "auto";
@@ -114,40 +122,7 @@ function daysAgo(days) {
 	return new Date(Date.now() + 8 * 3600 * 1000 - days * 86400000).toISOString().slice(0, 10);
 }
 
-/** 管理员 cookie 的值：用 ADMIN_PASSWORD 做 HMAC，密码一换所有旧 cookie 自动失效 */
-async function adminCookieValue(password) {
-	const encoder = new TextEncoder();
-	const key = await crypto.subtle.importKey("raw", encoder.encode(password), { name: "HMAC", hash: "SHA-256" }, false, [
-		"sign",
-	]);
-	const signature = await crypto.subtle.sign("HMAC", key, encoder.encode("wkb-admin-v1"));
-	return Array.from(new Uint8Array(signature))
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
-}
-
-function safeEqual(a, b) {
-	if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
-	let diff = 0;
-	for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-	return diff === 0;
-}
-
-function readCookie(request, name) {
-	const cookie = request.headers.get("cookie") ?? "";
-	for (const part of cookie.split(";")) {
-		const [key, ...rest] = part.trim().split("=");
-		if (key === name) return rest.join("=");
-	}
-	return "";
-}
-
-async function isAdmin(request, env) {
-	const password = (env?.ADMIN_PASSWORD ?? "").trim();
-	if (!password) return false;
-	const expected = await adminCookieValue(password);
-	return safeEqual(readCookie(request, "wkb_admin"), expected);
-}
+// 管理员 cookie 与登录态校验统一放在 worker/lib/admin.js（评论管理接口也用它）
 
 // ---------------- 接口实现 ----------------
 
@@ -506,6 +481,31 @@ export default {
 				return json({ ok: true }, 200, { "set-cookie": "wkb_admin=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0" });
 			}
 
+			if (path === "/api/admin/comments") {
+				if (request.method !== "GET") return json({ error: "只支持 GET" }, 405);
+				return handleAdminList(request, env);
+			}
+
+			if (path === "/api/admin/comments/action") {
+				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				return handleAdminAction(request, env);
+			}
+
+			if (path === "/api/admin/comments/reply") {
+				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				return handleAdminReply(request, env);
+			}
+
+			if (path === "/api/admin/comments/settings") {
+				if (request.method !== "GET" && request.method !== "POST") return json({ error: "只支持 GET / POST" }, 405);
+				return handleAdminSettings(request, env);
+			}
+
+			if (path === "/api/admin/comments/keywords") {
+				if (!["GET", "POST", "DELETE"].includes(request.method)) return json({ error: "只支持 GET / POST / DELETE" }, 405);
+				return handleAdminKeywords(request, env);
+			}
+
 			if (path === "/api/admin/overview") {
 				return handleOverview(request, env);
 			}
@@ -516,5 +516,7 @@ export default {
 		return env.ASSETS.fetch(request);
 	},
 };
+
+
 
 
