@@ -50,3 +50,77 @@ CREATE TABLE IF NOT EXISTS search_log (
   results INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_search_day ON search_log (day);
+
+-- ==================== 评论区 ====================
+-- 设计文档：docs/superpowers/specs/2026-11-01-comments-design.md
+
+-- 评论主体。post_id 是稳定键（posts/xxx.md），slug 只用于展示
+CREATE TABLE IF NOT EXISTS comments (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id       TEXT    NOT NULL,
+  slug          TEXT    NOT NULL,
+  parent_id     INTEGER,
+  root_id       INTEGER,
+  depth         INTEGER NOT NULL DEFAULT 0,
+  name          TEXT    NOT NULL,
+  email_hash    TEXT,
+  website       TEXT,
+  content       TEXT    NOT NULL,
+  content_hash  TEXT    NOT NULL,
+  status        TEXT    NOT NULL DEFAULT 'pending',
+  is_admin      INTEGER NOT NULL DEFAULT 0,
+  pinned        INTEGER NOT NULL DEFAULT 0,
+  report_count  INTEGER NOT NULL DEFAULT 0,
+  identity_hash TEXT    NOT NULL,
+  ip_hash       TEXT,
+  ua_hash       TEXT,
+  client_id     TEXT    NOT NULL,
+  created_at    TEXT    NOT NULL,
+  updated_at    TEXT,
+  deleted_at    TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_comments_client ON comments (client_id);
+CREATE INDEX IF NOT EXISTS idx_comments_post ON comments (post_id, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_comments_slug ON comments (slug, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_comments_identity ON comments (identity_hash, created_at);
+CREATE INDEX IF NOT EXISTS idx_comments_root ON comments (root_id);
+CREATE INDEX IF NOT EXISTS idx_comments_status ON comments (status, created_at);
+
+-- 限流计数（滑动窗口，桶 = ip:<hash> / id:<hash> / site）
+CREATE TABLE IF NOT EXISTS comment_rate (
+  bucket TEXT NOT NULL,
+  window TEXT NOT NULL,
+  ts     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rate_bucket ON comment_rate (bucket, ts);
+CREATE INDEX IF NOT EXISTS idx_rate_ts ON comment_rate (ts);
+
+-- 举报（同一条评论 + 同一个 IP 只算一次）
+CREATE TABLE IF NOT EXISTS comment_reports (
+  comment_id INTEGER NOT NULL,
+  ip_hash    TEXT    NOT NULL,
+  ts         TEXT    NOT NULL,
+  PRIMARY KEY (comment_id, ip_hash)
+);
+
+-- 屏蔽词：命中即进待审，不直接删
+CREATE TABLE IF NOT EXISTS comment_keywords (
+  id   INTEGER PRIMARY KEY AUTOINCREMENT,
+  word TEXT NOT NULL UNIQUE,
+  ts   TEXT NOT NULL
+);
+
+-- 站点设置（审核模式等）
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+-- 管理动作审计（只追加）
+CREATE TABLE IF NOT EXISTS audit_log (
+  id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts     TEXT NOT NULL,
+  action TEXT NOT NULL,
+  target TEXT,
+  detail TEXT
+);
