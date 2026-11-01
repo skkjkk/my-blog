@@ -175,13 +175,234 @@ import Layout from "@layouts/Layout.astro";
 					</div>
 					<ul class="log" id="log"></ul>
 				</section>
-			</div>
+				<!-- 评论审核 -->
+				<section class="card span-12" id="comments-card">
+					<div class="card-head">
+						<h2>
+							评论
+							<span class="cmt-badge" id="cmt-pending-badge" hidden></span>
+						</h2>
+						<p class="card-note" id="cmt-note">读者留言的审核与回复</p>
+					</div>
 
+					<div class="cmt-kpis" id="cmt-kpis"></div>
+
+					<div class="cmt-bar">
+						<select id="cmt-status" aria-label="按状态筛选">
+							<option value="pending">待审</option>
+							<option value="approved">已通过</option>
+							<option value="spam">垃圾</option>
+							<option value="deleted">已删除</option>
+							<option value="all">全部</option>
+						</select>
+						<input id="cmt-search" type="search" placeholder="搜昵称或内容" />
+						<div class="seg" id="cmt-mode" role="group" aria-label="审核模式">
+							<button type="button" data-mode="auto" class="is-active">先发后审</button>
+							<button type="button" data-mode="hold">全部待审</button>
+						</div>
+						<button type="button" class="btn" id="cmt-refresh">刷新</button>
+					</div>
+
+					<div class="cmt-list" id="cmt-list"></div>
+					<button type="button" class="btn" id="cmt-more" hidden>加载更多</button>
+
+					<div class="cmt-keywords-box">
+						<span class="card-note">屏蔽词（命中即进待审）</span>
+						<div class="cmt-bar">
+							<input id="cmt-keyword-input" type="text" placeholder="例如：加微信" maxlength="40" />
+							<button type="button" class="btn" id="cmt-keyword-add">添加</button>
+						</div>
+						<div class="chips" id="cmt-keywords"></div>
+					</div>
+				</section>
+			</div>
 			<footer class="foot">
 				<span>统计时区 GMT+8 · 不记录访客 IP · 数据仅博主可见</span>
 			</footer>
 		</div>
 	</main>
+<style is:global>
+	/* ---------- 评论审核卡片 ---------- */
+	.cmt-badge {
+		display: inline-block;
+		margin-left: 0.5rem;
+		padding: 0.1rem 0.45rem;
+		border-radius: 999px;
+		background: var(--alt);
+		color: #fff;
+		font-size: 0.7rem;
+		font-weight: 600;
+		vertical-align: middle;
+	}
+	.cmt-kpis {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 0.6rem;
+		margin: 0.2rem 0 0.9rem;
+	}
+	.cmt-kpi {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		padding: 0.6rem 0.8rem;
+		border-radius: 0.75rem;
+		background: var(--field);
+	}
+	.cmt-kpi b {
+		font-size: 1.25rem;
+		line-height: 1.2;
+	}
+	.cmt-kpi span {
+		font-size: 0.75rem;
+		color: var(--ink-3);
+	}
+	.cmt-kpi.is-warn b {
+		color: var(--alt);
+	}
+	.cmt-bar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 0.7rem;
+	}
+	.cmt-bar select,
+	.cmt-bar input {
+		padding: 0.4rem 0.6rem;
+		border-radius: 0.6rem;
+		border: 1px solid var(--line);
+		background: var(--field);
+		color: var(--ink-1);
+		font-size: 0.85rem;
+	}
+	.cmt-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+	}
+	.cmt-row {
+		padding: 0.75rem 0.9rem;
+		border-radius: 0.8rem;
+		border: 1px solid var(--line-soft);
+		background: var(--card);
+	}
+	.cmt-row-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.45rem;
+		font-size: 0.78rem;
+		color: var(--ink-3);
+	}
+	.cmt-row-head b {
+		color: var(--ink-1);
+		font-size: 0.88rem;
+	}
+	.cmt-tag {
+		padding: 0.05rem 0.4rem;
+		border-radius: 999px;
+		background: var(--field);
+		font-style: normal;
+		font-size: 0.7rem;
+	}
+	.cmt-tag.is-warn {
+		background: color-mix(in oklab, var(--alt) 18%, transparent);
+		color: var(--alt);
+	}
+	.cmt-status {
+		padding: 0.05rem 0.4rem;
+		border-radius: 999px;
+		font-style: normal;
+		font-size: 0.7rem;
+		background: var(--field);
+	}
+	.cmt-status.is-pending {
+		background: color-mix(in oklab, var(--alt) 16%, transparent);
+		color: var(--alt);
+	}
+	.cmt-status.is-spam,
+	.cmt-status.is-deleted {
+		opacity: 0.7;
+	}
+	.cmt-link {
+		color: var(--c1);
+		text-decoration: none;
+	}
+	.cmt-link:hover {
+		text-decoration: underline;
+	}
+	.cmt-time {
+		margin-left: auto;
+		font-size: 0.72rem;
+		color: var(--ink-3);
+	}
+	.cmt-body {
+		margin: 0.45rem 0 0.6rem;
+		font-size: 0.88rem;
+		line-height: 1.6;
+		color: var(--ink-2);
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+	.cmt-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+	.cmt-reply {
+		margin-top: 0.6rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+	.cmt-reply-input {
+		width: 100%;
+		padding: 0.5rem 0.6rem;
+		border-radius: 0.6rem;
+		border: 1px solid var(--line);
+		background: var(--field);
+		color: var(--ink-1);
+		font-size: 0.85rem;
+		resize: vertical;
+	}
+	.cmt-keywords-box {
+		margin-top: 1rem;
+		padding-top: 0.8rem;
+		border-top: 1px dashed var(--line);
+	}
+	.cmt-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		padding: 0.15rem 0.5rem;
+		border-radius: 999px;
+		background: var(--field);
+		font-size: 0.78rem;
+		color: var(--ink-2);
+	}
+	.cmt-chip button {
+		border: none;
+		background: none;
+		cursor: pointer;
+		color: var(--ink-3);
+		font-size: 0.9rem;
+		line-height: 1;
+	}
+	#cmt-note[data-error="1"] {
+		color: var(--alt);
+	}
+	@media (max-width: 640px) {
+		.cmt-kpis {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+</style>
+<script>
+	import { initAdminComments } from "../../scripts/admin-comments";
+
+	initAdminComments();
+</script>
+
 </Layout>
 
 <style is:global>
@@ -1826,6 +2047,7 @@ import Layout from "@layouts/Layout.astro";
 		lastData = data;
 		showConsole(true);
 		renderAll(data);
+		window.dispatchEvent(new Event("admin:console"));
 
 		const stamp = $("#stamp");
 		if (stamp) {
@@ -1878,3 +2100,4 @@ import Layout from "@layouts/Layout.astro";
 		await load();
 	})();
 </script>
+
