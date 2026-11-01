@@ -36,6 +36,21 @@ A static blog template built with [Astro](https://astro.build).
 评论是自己的：Cloudflare Worker + D1，匿名可评、后台可审核。
 详见 [docs/comments.md](docs/comments.md)。
 
+## 🧰 自己用的那套（这个 fork 额外加的）
+
+不做「给访客看的花活」，只做「自己天天用得上的」：
+
+| 能力 | 入口 | 一句话 |
+|---|---|---|
+| 刷题 | `/quiz/` | 143 篇面试笔记变成可刷的题：空格看答案、1/2/3 打分、按简化 SM-2 排复习、错题自动回队列 |
+| 命令面板 | 任意页 `Ctrl/⌘ + K` | 按标题找题、跳页面、一键生成新笔记的 frontmatter |
+| 数据台 | `/admin/` | 访问量之外，多了「搜了却没有的」「最常被问的」「总记不住的题」三张自我诊断榜 |
+| MCP Server | `/mcp` | 把题库挂到 Cursor / Claude：`search` / `get_note` / `recent` 三个工具 |
+| 离线 | PWA | 手机上添加到主屏幕，没网也能刷 |
+| 跨设备 | 登录 `/admin` 后自动 | 刷题进度存 D1，换设备接着刷 |
+
+写作侧顺手的三条命令：`pnpm new-post`（模板 + 默认草稿）、`pnpm img`（截图转 webp 并输出链接）、`pnpm lint:posts`（frontmatter 与 markdown 体检，`pnpm build` 会先跑）。
+
 ## 🚀 Getting Started
 
 1. Create your blog repository:
