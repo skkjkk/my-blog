@@ -27,14 +27,27 @@ import { todayKey } from "../../utils/quiz-utils";
 import { url } from "../../utils/url-utils";
 import { visitorIds } from "../../scripts/analytics";
 
+type Point = { heading: string; detail: string };
+type Pair = { q: string; a: string };
+
 type Item = {
 	slug: string;
 	url: string;
 	title: string;
 	category: string;
 	tags: string[];
+	/** 结论：直接回答题目的那段 */
 	answer: string;
-	outline: string[];
+	/** 要点：每节标题 + 一句核心 */
+	points?: Point[];
+	/** 常见追问 */
+	followUps?: Pair[];
+	/** 易错点 */
+	pitfalls?: string[];
+	/** 一句话记住 */
+	memory?: string;
+	/** 兼容：只有标题的提纲 */
+	outline?: string[];
 };
 
 type Mode = "today" | "due" | "wrong" | "random" | "category";
@@ -188,6 +201,13 @@ function current(): Item | null {
 	return queue[pos] ?? null;
 }
 
+/** 要点列表：新数据用 points（带一句展开），老缓存退化成只有标题 */
+function pointsOf(item: Item | null): Point[] {
+	if (!item) return [];
+	if (item.points?.length) return item.points;
+	return (item.outline ?? []).map((heading) => ({ heading, detail: "" }));
+}
+
 function next() {
 	pos += 1;
 	revealed = false;
@@ -199,7 +219,7 @@ function reveal() {
 	const item = current();
 	if (!item || revealed) return;
 	revealed = true;
-	checked = new Array(item.outline.length).fill(false) as boolean[];
+	checked = new Array(pointsOf(item).length).fill(false) as boolean[];
 }
 
 function grade(value: Grade) {
@@ -308,6 +328,8 @@ onMount(() => {
 });
 
 $: item = pos >= 0 ? (queue[pos] ?? null) : null;
+$: points = pointsOf(item);
+$: checkedCount = checked.filter(Boolean).length;
 $: doneToday = todayCount(state, today);
 $: dueCount = dueSlugs(state, today).length;
 $: streak = streakDays(state, today);
@@ -482,29 +504,97 @@ const TABS: { key: Mode; label: string }[] = [
 					<span class="block text-xs">按 <kbd class="kbd">空格</kbd> 或点这里看答案</span>
 				</button>
 			{:else}
-				<div class="rounded-xl bg-[var(--btn-plain-bg-hover)] px-5 py-4 mb-4">
-					<p class="text-90 leading-relaxed whitespace-pre-wrap">{item.answer}</p>
-				</div>
-
-				{#if item.outline.length > 0}
-					<div class="mb-5">
-						<p class="text-xs text-30 mb-2">要点提纲（点一下标记「我说到了」）</p>
-						<div class="flex flex-wrap gap-2">
-							{#each item.outline as point, i}
-								<button
-									class={`px-2.5 py-1 rounded-md text-xs transition ${
-										checked[i]
-											? "bg-[var(--primary)] text-white"
-											: "bg-[var(--btn-regular-bg)] text-75 hover:text-[var(--primary)]"
-									}`}
-									on:click={() => toggleCheck(i)}
-								>
-									{point}
-								</button>
-							{/each}
-						</div>
+				<div class="space-y-4 mb-5">
+					<!-- 结论：先背这一句 -->
+					<div class="rounded-xl bg-[var(--btn-plain-bg-hover)] px-5 py-4">
+						<p class="text-[0.7rem] font-bold tracking-widest text-[var(--primary)] mb-2">结论 · 先背这一句</p>
+						<p class="text-90 leading-relaxed whitespace-pre-wrap">
+							{item.answer || "这篇笔记还没写出结论，去原文补一句再来刷。"}
+						</p>
 					</div>
-				{/if}
+
+					<!-- 要点：逐条核对，点一下标记「我说到了」 -->
+					{#if points.length > 0}
+						<div>
+							<div class="flex items-baseline justify-between mb-2">
+								<p class="text-xs text-30">要点（点一下标记「我说到了」）</p>
+								<p class="text-xs text-30 tabular-nums">{checkedCount} / {points.length}</p>
+							</div>
+							<div class="space-y-2">
+								{#each points as point, i}
+									<button
+										class={`w-full text-left rounded-lg px-3.5 py-2.5 border transition ${
+											checked[i]
+												? "border-[var(--primary)] bg-[var(--btn-regular-bg)]"
+												: "border-[var(--line-divider)] hover:border-[var(--primary)]"
+										}`}
+										on:click={() => toggleCheck(i)}
+									>
+										<span class="flex items-start gap-2.5">
+											<span
+												class={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center text-[0.7rem] ${
+													checked[i]
+														? "bg-[var(--primary)] border-[var(--primary)] text-white"
+														: "border-[var(--line-divider)] text-transparent"
+												}`}
+											>
+												✓
+											</span>
+											<span class="min-w-0">
+												<span class="block text-sm font-bold text-90">{point.heading}</span>
+												{#if point.detail}
+													<span class="block text-xs text-50 leading-relaxed mt-1">{point.detail}</span>
+												{/if}
+											</span>
+										</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- 常见追问 -->
+					{#if (item.followUps ?? []).length > 0}
+						<div>
+							<p class="text-xs text-30 mb-2">常见追问（面试官接着会问这些）</p>
+							<div class="space-y-1.5">
+								{#each item.followUps ?? ([] as Pair[]) as pair}
+									<details class="group rounded-lg bg-[var(--btn-regular-bg)] px-3.5 py-2">
+										<summary class="cursor-pointer text-sm text-90 font-medium list-none flex items-start gap-2 hover:text-[var(--primary)] transition">
+											<span class="text-[var(--primary)] shrink-0">Q</span>
+											<span class="flex-1">{pair.q}</span>
+											<span class="text-30 text-base leading-none transition-transform group-open:rotate-90">›</span>
+										</summary>
+										<p class="text-xs text-75 leading-relaxed mt-2 pl-5">{pair.a}</p>
+									</details>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- 易错点 -->
+					{#if (item.pitfalls ?? []).length > 0}
+						<div class="rounded-lg border border-dashed border-[var(--line-divider)] px-4 py-3">
+							<p class="text-xs text-30 mb-2">易错点</p>
+							<ul class="space-y-1.5">
+								{#each item.pitfalls ?? ([] as string[]) as pitfall}
+									<li class="flex items-start gap-2 text-xs text-75 leading-relaxed">
+										<span class="text-[var(--primary)] shrink-0">!</span>
+										<span>{pitfall}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+
+					<!-- 一句话记住 -->
+					{#if item.memory}
+						<div class="rounded-lg bg-[var(--btn-plain-bg-hover)] px-4 py-3">
+							<p class="text-[0.7rem] font-bold tracking-widest text-[var(--primary)] mb-1">一句话记住</p>
+							<p class="text-sm text-90 leading-relaxed">{item.memory}</p>
+						</div>
+					{/if}
+				</div>
 
 				<div class="flex flex-wrap items-center gap-3">
 					<span class="text-xs text-30 mr-auto">你答得怎么样？</span>
@@ -562,3 +652,5 @@ const TABS: { key: Mode; label: string }[] = [
 		font-family: var(--code-font, ui-monospace);
 	}
 </style>
+
+

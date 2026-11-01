@@ -7,7 +7,7 @@ category: Java
 section: note
 draft: false
 ---
-**`synchronized`** 与 **`ReentrantLock`** 都是**互斥锁**，都保证同一时刻只有一个线程进入临界区，且**都是可重入的**（同一线程可重复获取同一把锁）。差异集中在**实现层次、能力边界与使用风险**三个方面。
+**`synchronized`** 与 **`ReentrantLock`** 都是**互斥锁**，都保证同一时刻只有一个线程进入临界区，且**都是可重入的**（同一线程可重复获取同一把锁）。差异集中在**实现层次、能力边界与使用风险**三个方面。结论先说：**默认用 `synchronized`，只有需要它给不了的能力（可中断、超时、公平、多条件、读写锁）时才换成 `ReentrantLock`**。
 
 ## 实现层次与释放机制
 
@@ -37,7 +37,7 @@ draft: false
 | 公平性 | ❌ 固定非公平 | ✅ 可选公平/非公平 |
 | 多条件队列 | ❌ 单个等待集 | ✅ `newCondition()` 多个 |
 | 锁类型 | 仅独占 | 独占 + **读写锁** |
-| 中断响应（等待） | `wait()` 不可中断 | `Condition.await()` 可中断 |
+| 条件等待的中断 | `wait()` 可中断，但只有一个等待集 | `await()` 可中断，且按 Condition 分队列 |
 | 锁状态可观测 | ❌ | ✅ `isLocked()` / `getHoldCount()` / `isFair()` |
 | 底层数据结构 | **对象头 Mark Word** | **AQS 的 volatile state + CLH 队列** |
 
@@ -89,13 +89,33 @@ flowchart TD
   E -->|否| G[就用 ReentrantLock]
 ```
 
-## 面试怎么答
+## 常见追问
 
-1. **实现层次**：`synchronized` 是关键字 + JVM 自动释放；`ReentrantLock` 是 AQS 类 + 手动释放。
-2. **能力边界**：可中断、超时、公平、多条件、读写锁——这五个是 `ReentrantLock` 独有的。
-3. **性能要辩证**：JDK 6 后 `synchronized` 差距缩小，别再说"`ReentrantLock` 更快"，现代低竞争场景 `synchronized` 更优。
-4. **选型**：默认 `synchronized`，需要额外能力才选 `ReentrantLock`。
+**问：一句话说，两者最本质的区别在哪？**
+**答：** `synchronized` 是关键字，锁的获取与释放由 JVM 用 `monitorenter`/`monitorexit` 代管、必然自动释放；`ReentrantLock` 是 AQS 上的普通类，`lock()`/`unlock()` 全靠自己配对，所以能力更多，风险也一并在自己手上。
+
+**问：什么场景必须用 ReentrantLock，不能用 synchronized 替代？**
+**答：** 需要可中断等锁（`lockInterruptibly()`）、超时获取（`tryLock(timeout)`）、公平锁、多个 `Condition` 精确唤醒、读写锁这五项能力之一时必须用它——`synchronized` 一样都给不了。
+
+**问：ReentrantLock 性能不是更好吗？**
+**答：** 这是过时认知。JDK 6 之前确实如此，之后偏向锁、自适应自旋与锁消除陆续加入，差距被大幅缩小；现代 JVM 低竞争场景 `synchronized` 反而更优，因为 AQS 每次 `lock()` 都要走 `tryAcquire`、入队、自旋加 `park`，而 `synchronized` 无竞争时几乎零开销。
+
+**问：那两者能不能混着用？**
+**答：** 语法上可以互相嵌套，但同一个对象上混用两种锁会让锁序不一致，反而更容易死锁，所以应避免。
 
 :::tip[区分度最高的点]
-第三点是区分度最高的——多数人只会说"`ReentrantLock` 性能更好"，能指出这是过时认知会明显不同。
+第三问是区分度最高的——多数人只会背"`ReentrantLock` 性能更好"，能指出这是过时认知、现代低竞争场景下 `synchronized` 更占优，会明显不同。
+:::
+
+## 易错点
+
+- **容易错的直觉**：`ReentrantLock` 一定比 `synchronized` 快。**正确说法**：JDK 6 之后偏向锁、自适应自旋、锁消除陆续补上，差距已大幅缩小，低竞争场景 `synchronized` 更省——`ReentrantLock` 的价值是**能力**不是速度。
+- **容易错的直觉**：`unlock()` 写在 `try` 块里和写在 `finally` 里差不多。**正确说法**：只要异常路径漏掉一次，锁就一直被持有，会直接死锁；`lock()` 之后紧跟 `try`、`unlock()` 放在 `finally` 是唯一稳妥写法。
+- **容易错的直觉**：`Object.wait()` 不可中断。**正确说法**：`wait()` 会抛 `InterruptedException`，是可中断的；真正不能中断的是**进入 `synchronized` 块前等锁**的那段阻塞，这要靠 `lockInterruptibly()` 才补得上。
+- **容易错的直觉**：公平锁更"正确"，应该默认打开。**正确说法**：公平锁按 FIFO 严格排队，会带来更多线程切换与吞吐下降，所以 `ReentrantLock` 默认仍是非公平，只在排队时延敏感时才开。
+
+## 一句话记住
+
+:::tip[一句话记住]
+默认 `synchronized`，缺能力才用 `ReentrantLock`。
 :::
