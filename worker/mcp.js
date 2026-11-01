@@ -13,35 +13,32 @@
 const PROTOCOL_VERSION = "2024-11-05";
 const SERVER_INFO = { name: "wkb-blog", version: "1.0.0" };
 
-/** 索引缓存：同一个 isolate 里只从 ASSETS 读一次 */
-let indexCache = null;
+// 索引与检索逻辑和 AI 问答共用（worker/lib/notes-index.js）
+import {
+	findNote,
+	loadIndex,
+	resetIndexCache,
+	searchNotes,
+	snippet,
+} from "./lib/notes-index.js";
 
 export function resetMcpCache() {
-	indexCache = null;
-}
-
-async function loadIndex(env, requestUrl) {
-	if (indexCache) return indexCache;
-
-	if (!env?.ASSETS?.fetch) return [];
-
-	const target = new URL("/notes-full.json", requestUrl);
-	const response = await env.ASSETS.fetch(new Request(target.toString(), { headers: { accept: "application/json" } }));
-	if (!response.ok) return [];
-
-	const data = await response.json();
-	indexCache = Array.isArray(data?.items) ? data.items : [];
-	return indexCache;
+	resetIndexCache();
 }
 
 const TOOLS = [
 	{
 		name: "search",
-		description: "在博客题库里按关键词检索（标题、分类、标签、正文）。返回标题、链接、分类和命中片段。",
+		description:
+			"在博客题库里按关键词检索（标题、分类、标签、正文）。返回标题、链接、分类和命中片段。",
 		inputSchema: {
 			type: "object",
 			properties: {
-				query: { type: "string", description: "关键词，中文即可，比如「索引失效」「MCP 和 A2A 的区别」" },
+				query: {
+					type: "string",
+					description:
+						"关键词，中文即可，比如「索引失效」「MCP 和 A2A 的区别」",
+				},
 				limit: { type: "number", description: "返回多少条，默认 5，最多 20" },
 			},
 			required: ["query"],
@@ -49,11 +46,15 @@ const TOOLS = [
 	},
 	{
 		name: "get_note",
-		description: "按 slug 或标题取一篇笔记的完整内容（含要点提纲和正文纯文本）。",
+		description:
+			"按 slug 或标题取一篇笔记的完整内容（含要点提纲和正文纯文本）。",
 		inputSchema: {
 			type: "object",
 			properties: {
-				slug_or_title: { type: "string", description: "文章 slug（URL 最后一段）或完整标题，允许部分匹配" },
+				slug_or_title: {
+					type: "string",
+					description: "文章 slug（URL 最后一段）或完整标题，允许部分匹配",
+				},
 			},
 			required: ["slug_or_title"],
 		},
@@ -72,20 +73,11 @@ const TOOLS = [
 
 const text = (value) => ({ content: [{ type: "text", text: value }] });
 
-function snippet(item, keyword) {
-	const source = item.text ?? "";
-	if (!keyword) return source.slice(0, 160);
-
-	const index = source.toLowerCase().indexOf(keyword.toLowerCase());
-	if (index < 0) return source.slice(0, 160);
-
-	const start = Math.max(0, index - 60);
-	const piece = source.slice(start, start + 200);
-	return `${start > 0 ? "…" : ""}${piece}${start + 200 < source.length ? "…" : ""}`;
-}
-
+/** 单条结果的 Markdown（标题 / 链接 / 命中片段） */
 function formatItem(item, keyword) {
-	const meta = [item.category, ...(item.tags ?? [])].filter(Boolean).join(" · ");
+	const meta = [item.category, ...(item.tags ?? [])]
+		.filter(Boolean)
+		.join(" · ");
 	return [
 		`## ${item.title}`,
 		`${item.url}${meta ? `（${meta}）` : ""}`,
@@ -95,47 +87,23 @@ function formatItem(item, keyword) {
 		.join("\n");
 }
 
-function scoreItem(item, needle) {
-	const title = String(item.title ?? "").toLowerCase();
-	const body = String(item.text ?? "").toLowerCase();
-	const category = String(item.category ?? "").toLowerCase();
-	const tags = (item.tags ?? []).join(" ").toLowerCase();
-
-	let score = 0;
-	if (title.includes(needle)) score += 50;
-	if (title.startsWith(needle)) score += 30;
-	if (category.includes(needle)) score += 12;
-	if (tags.includes(needle)) score += 15;
-	if (body.includes(needle)) score += 20;
-
-	// 多词查询：每个词都出现才加分，避免只命中一个字的噪声
-	const words = needle.split(/\s+/).filter(Boolean);
-	if (words.length > 1 && words.every((word) => `${title} ${body}`.includes(word))) score += 25;
-
-	return score;
-}
-
 async function toolSearch(args, env, requestUrl) {
 	const query = String(args?.query ?? "").trim();
 	if (!query) throw new Error("query 不能为空");
 
 	const limitRaw = Number(args?.limit ?? 5);
-	const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.round(limitRaw), 1), 20) : 5;
+	const limit = Number.isFinite(limitRaw)
+		? Math.min(Math.max(Math.round(limitRaw), 1), 20)
+		: 5;
 
 	const items = await loadIndex(env, requestUrl);
-	const needle = query.toLowerCase();
-
-	const hits = items
-		.map((item) => ({ item, score: scoreItem(item, needle) }))
-		.filter((row) => row.score > 0)
-		.sort((a, b) => b.score - a.score)
-		.slice(0, limit);
+	const hits = searchNotes(items, query, limit);
 
 	if (hits.length === 0) {
 		return text(`博客里还没写到「${query}」。`);
 	}
 
-	return text(hits.map((row) => formatItem(row.item, query)).join("\n\n"));
+	return text(hits.map((hit) => formatItem(hit.item, query)).join("\n\n"));
 }
 
 async function toolGetNote(args, env, requestUrl) {
@@ -143,17 +111,14 @@ async function toolGetNote(args, env, requestUrl) {
 	if (!key) throw new Error("slug_or_title 不能为空");
 
 	const items = await loadIndex(env, requestUrl);
-	const needle = key.toLowerCase();
-
-	const item =
-		items.find((entry) => entry.slug === key) ??
-		items.find((entry) => String(entry.title).toLowerCase() === needle) ??
-		items.find((entry) => String(entry.title).toLowerCase().includes(needle)) ??
-		items.find((entry) => String(entry.slug).includes(needle));
+	const item = findNote(items, key);
 
 	if (!item) return text(`没找到匹配「${key}」的笔记。可以先用 search 找找。`);
 
-	const outline = (item.outline ?? []).length > 0 ? item.outline.map((point) => `- ${point}`).join("\n") : "（这篇没有小标题）";
+	const outline =
+		(item.outline ?? []).length > 0
+			? item.outline.map((point) => `- ${point}`).join("\n")
+			: "（这篇没有小标题）";
 
 	return text(
 		[
@@ -172,7 +137,9 @@ async function toolGetNote(args, env, requestUrl) {
 
 async function toolRecent(args, env, requestUrl) {
 	const limitRaw = Number(args?.limit ?? 10);
-	const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.round(limitRaw), 1), 50) : 10;
+	const limit = Number.isFinite(limitRaw)
+		? Math.min(Math.max(Math.round(limitRaw), 1), 50)
+		: 10;
 
 	const items = await loadIndex(env, requestUrl);
 	const rows = [...items].slice(0, limit);
@@ -208,7 +175,8 @@ async function handleMessage(message, env, requestUrl) {
 			protocolVersion: version,
 			capabilities: { tools: { listChanged: false } },
 			serverInfo: SERVER_INFO,
-			instructions: "这是 Wkb 的个人博客题库（Java / 数据库 / 网络 / Agent 与 LLM 应用）。先用 search 找，再用 get_note 读全文。",
+			instructions:
+				"这是 Wkb 的个人博客题库（Java / 数据库 / 网络 / Agent 与 LLM 应用）。先用 search 找，再用 get_note 读全文。",
 		});
 	}
 
@@ -219,11 +187,21 @@ async function handleMessage(message, env, requestUrl) {
 	if (method === "tools/call") {
 		const name = params?.name;
 		try {
-			const result = await callTool(name, params?.arguments ?? {}, env, requestUrl);
+			const result = await callTool(
+				name,
+				params?.arguments ?? {},
+				env,
+				requestUrl,
+			);
 			return rpcOk(id, result);
 		} catch (error) {
 			return rpcOk(id, {
-				content: [{ type: "text", text: `调用 ${name} 失败：${error?.message ?? error}` }],
+				content: [
+					{
+						type: "text",
+						text: `调用 ${name} 失败：${error?.message ?? error}`,
+					},
+				],
 				isError: true,
 			});
 		}
@@ -239,14 +217,19 @@ async function handleMessage(message, env, requestUrl) {
 
 const CORS = {
 	"access-control-allow-origin": "*",
-	"access-control-allow-headers": "content-type, mcp-session-id, mcp-protocol-version",
+	"access-control-allow-headers":
+		"content-type, mcp-session-id, mcp-protocol-version",
 	"access-control-allow-methods": "POST, GET, OPTIONS",
 };
 
 export function mcpJson(body, status = 200) {
 	return new Response(JSON.stringify(body), {
 		status,
-		headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...CORS },
+		headers: {
+			"content-type": "application/json; charset=utf-8",
+			"cache-control": "no-store",
+			...CORS,
+		},
 	});
 }
 
@@ -267,7 +250,9 @@ export async function handleMcp(request, env) {
 			const handled = await handleMessage(message, env, requestUrl);
 			if (handled) results.push(handled);
 		}
-		return results.length === 0 ? new Response(null, { status: 202, headers: CORS }) : mcpJson(results);
+		return results.length === 0
+			? new Response(null, { status: 202, headers: CORS })
+			: mcpJson(results);
 	}
 
 	const result = await handleMessage(payload, env, requestUrl);
@@ -283,6 +268,7 @@ export async function describeMcp() {
 		protocolVersion: PROTOCOL_VERSION,
 		transport: "streamable-http (JSON)",
 		tools: TOOLS.map((tool) => tool.name),
-		usage: "POST JSON-RPC 2.0 到 /mcp，例如 {\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}",
+		usage:
+			'POST JSON-RPC 2.0 到 /mcp，例如 {"jsonrpc":"2.0","id":1,"method":"tools/list"}',
 	});
 }

@@ -256,6 +256,15 @@ const ACTIONS = (): Entry[] => [
 	},
 	{
 		kind: "action",
+		title: "问 AI 助手",
+		subtitle: "侧边栏打开，基于当前这篇笔记回答",
+		run: () => {
+			hide();
+			window.dispatchEvent(new CustomEvent("ask:open"));
+		},
+	},
+	{
+		kind: "action",
 		title: "打开站内全文搜索",
 		subtitle: "交给 Pagefind，适合只记得正文关键词的情况",
 		run: () => {

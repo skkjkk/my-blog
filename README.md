@@ -43,6 +43,7 @@ A static blog template built with [Astro](https://astro.build).
 | 能力 | 入口 | 一句话 |
 |---|---|---|
 | 刷题 | `/quiz/` | 143 篇面试笔记变成可刷的题：空格看答案、1/2/3 打分、按简化 SM-2 排复习、错题自动回队列 |
+| AI 助手 | 笔记页右下角气泡 / `Ctrl/⌘ + J` | 侧边抽屉里问当前这篇笔记：真流式输出、带思考过程、会自己调工具（读笔记 / 检索站内 / 找相关），`POST /api/ask`（SSE） |
 | 命令面板 | 任意页 `Ctrl/⌘ + K` | 按标题找题、跳页面、一键生成新笔记的 frontmatter |
 | 数据台 | `/admin/` | 左侧导航分五页（概览 / 读者 / AI / 内容 / 评论）：访问量之外，还有「搜了却没有的」「最常被问的」「总记不住的题」三张自我诊断榜 |
 | MCP Server | `/mcp` | 把题库挂到 Cursor / Claude：`search` / `get_note` / `recent` 三个工具 |

@@ -4,7 +4,7 @@ import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 
 import ConfigCarrier from "@components/ConfigCarrier.astro";
-import AIChatWidget from "@components/control/AIChatWidget.astro";
+import AskPanel from "@components/control/AskPanel.astro";
 import CommandPalette from "@components/control/CommandPalette.svelte";
 import { profileConfig, siteConfig } from "@/config";
 import {
@@ -179,7 +179,7 @@ const bannerOffset =
 		<ConfigCarrier></ConfigCarrier>
 		<slot />
 
-		{!noAIChat && <AIChatWidget />}
+		{!noAIChat && <AskPanel />}
 
 		<!-- ⌘K 命令面板：挂在 swup 容器外，切页面后依然可用 -->
 		<CommandPalette client:only="svelte" />

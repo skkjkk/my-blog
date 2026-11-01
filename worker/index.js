@@ -17,6 +17,7 @@
 
 // ---------------- 大模型 ----------------
 
+import { handleAsk } from "./ask.js";
 import { handleCreate, handleList, handleReport } from "./comments.js";
 import {
 	handleAdminAction,
@@ -597,6 +598,12 @@ async function handleRequest(request, env, ctx) {
 			if (path === "/api/chat") {
 				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
 				return handleChat(request, env, ctx);
+			}
+
+			// 笔记页侧边栏的 AI 助手：SSE 流式 + 工具调用
+			if (path === "/api/ask") {
+				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				return handleAsk(request, env, ctx);
 			}
 
 			if (path === "/api/hit") {

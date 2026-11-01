@@ -141,7 +141,18 @@ const server = createServer(async (request, response) => {
 		});
 		const cookies = workerResponse.headers.getSetCookie?.() ?? [];
 		if (cookies.length > 0) response.setHeader("set-cookie", cookies);
-		response.end(Buffer.from(await workerResponse.arrayBuffer()));
+
+		// 流式响应（SSE）必须边收边发：先攒成 Buffer 的话，本地就看不到
+		// 「一个字一个字往外蹦」的效果，也没法验中断
+		if (workerResponse.body) {
+			response.flushHeaders?.();
+			for await (const chunk of workerResponse.body) {
+				response.write(Buffer.from(chunk));
+			}
+			response.end();
+		} else {
+			response.end(Buffer.from(await workerResponse.arrayBuffer()));
+		}
 	} catch (error) {
 		console.error("请求处理失败", error);
 		response.statusCode = 500;

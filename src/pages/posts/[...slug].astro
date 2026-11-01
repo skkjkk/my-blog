@@ -51,6 +51,14 @@ const jsonLd = {
 ---
 <MainGridLayout banner={entry.data.image} title={entry.data.title} description={entry.data.description} lang={entry.data.lang} setOGTypeArticle={true} headings={headings}>
     <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)}></script>
+    <!-- 侧边 AI 助手靠这几个 data-* 认出「读者正在看哪篇」，swup 换页时也会跟着换 -->
+    <div
+        id="note-context"
+        hidden
+        data-slug={postUrlSlug({ title: entry.data.title, slug: entry.slug })}
+        data-title={entry.data.title}
+        data-url={getPostUrlBySlug(postUrlSlug({ title: entry.data.title, slug: entry.slug }))}
+    ></div>
     <div class="flex w-full rounded-[var(--radius-large)] overflow-hidden relative mb-4">
         <div id="post-container" class:list={["card-base z-10 px-6 md:px-9 pt-6 pb-4 relative w-full ",
             {}
