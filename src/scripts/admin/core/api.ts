@@ -11,6 +11,8 @@ export type StatCard = {
 		| "funnel"
 		| "heatmap"
 		| "histogram"
+		| "calendar"
+		| "scatter"
 		| "bars"
 		| "donut"
 		| "table"

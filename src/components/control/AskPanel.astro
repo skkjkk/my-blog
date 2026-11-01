@@ -28,7 +28,7 @@
 		<div id="ask-log" class="ask-log" role="log" aria-live="polite">
 			<div class="ask-welcome" id="ask-welcome">
 				<p class="ask-welcome-title">我是这个博客的 AI 助手</p>
-				<p class="ask-welcome-sub">我会先读你正在看的这篇，再回答问题；不够的话我自己去站里翻别的笔记。</p>
+				<p class="ask-welcome-sub">本站笔记、通用技术问题、需要联网查的最新资料都可以问。我会按问题自己决定查哪里，不用每句都从笔记里找答案。</p>
 				<div class="ask-chips" id="ask-suggests"></div>
 			</div>
 		</div>
@@ -432,7 +432,18 @@
 		gap: 0.35rem;
 		font-size: 0.73rem;
 	}
+	.ask-sources {
+		align-items: center;
+	}
+	.ask-sources-label {
+		width: 100%;
+		font-size: 0.68rem;
+		opacity: 0.55;
+	}
 	.ask-sources a {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
 		padding: 0.2rem 0.5rem;
 		border-radius: 999px;
 		background: var(--btn-plain-bg-hover);
@@ -446,6 +457,24 @@
 	.ask-sources a:hover {
 		background: var(--primary);
 		color: #fff;
+	}
+	.ask-source-id {
+		flex: 0 0 auto;
+		font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+		font-size: 0.64rem;
+		opacity: 0.65;
+	}
+	.ask-source-kind {
+		flex: 0 0 auto;
+		font-size: 0.62rem;
+		padding: 0 0.28rem;
+		border-radius: 0.25rem;
+		background: color-mix(in oklab, var(--primary) 14%, transparent);
+		color: var(--primary);
+	}
+	.ask-sources a[data-kind="web"] .ask-source-kind {
+		background: color-mix(in oklab, oklch(0.62 0.14 220) 16%, transparent);
+		color: oklch(0.56 0.14 220);
 	}
 
 	.ask-meta {

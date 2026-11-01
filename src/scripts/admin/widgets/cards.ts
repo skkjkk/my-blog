@@ -173,7 +173,7 @@ export function drawLog(
 					<span class="lq">${esc(row.text)}</span>
 					<span class="lbadges">${who ? `<b class="bd note">${esc(who)}</b>` : ""}${badges}</span>
 				</span>
-				<span class="log-meta ${bad ? "bad" : ""}">${ms(row.ms)}</span>
+				<span class="log-meta ${bad ? "bad" : ""}">${ms(Number(row.ms) || 0)}</span>
 			</li>`;
 		})
 		.join("");

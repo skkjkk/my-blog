@@ -5,7 +5,9 @@
 	"compatibility_date": "2026-10-30",
 	"vars": {
 		"AI_BASE_URL": "https://api.hcnsec.cn/v1/chat/completions",
-		"AI_MODEL": "auto"
+		"AI_MODEL": "auto",
+		// auto = Google 轻量 HTML，失败退 Bing RSS；也可配 brave / tavily / searxng
+		"WEB_SEARCH_PROVIDER": "auto"
 	},
 	"d1_databases": [
 		{

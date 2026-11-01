@@ -7,6 +7,7 @@ import {
 	cutSseEvents,
 	emptyTurn,
 	parseToolArgs,
+	shouldReadCurrentNote,
 	sseChunk,
 	summarizeTool,
 } from "../../worker/lib/agent.js";
@@ -146,7 +147,7 @@ test("buildMessages 把当前笔记全文和历史都带上", () => {
 	});
 
 	assert.equal(messages[0].role, "system");
-	assert.match(messages[0].content, /当前正在看的笔记是《CAS》/);
+	assert.match(messages[0].content, /当前浏览的是《CAS》/);
 	assert.deepEqual(messages[1], { role: "assistant", content: "上一轮回答" });
 	assert.equal(messages.at(-1).role, "user");
 	assert.match(messages.at(-1).content, /CAS 的正文/);
@@ -161,6 +162,18 @@ test("summarizeTool 给 UI 的一句话摘要", () => {
 	);
 	assert.equal(summarizeTool("search_notes", { items: [] }), "没有命中");
 	assert.equal(summarizeTool("search_notes", { items: [{}, {}] }), "2 篇命中");
+	assert.equal(summarizeTool("web_search", { items: [{}, {}, {}] }), "3 条网页");
+	assert.equal(summarizeTool("fetch_url", { found: false }), "网页没有正文");
+});
+
+test("shouldReadCurrentNote 只对指向当前文章的提问预读", () => {
+	const title = "什么是 Java 的 CAS 操作？";
+	assert.equal(shouldReadCurrentNote("这篇讲了什么", title), true);
+	assert.equal(shouldReadCurrentNote("作者认为 CAS 有什么缺点", title), true);
+	assert.equal(shouldReadCurrentNote("CAS 和 volatile 有什么区别", title), true);
+	assert.equal(shouldReadCurrentNote("解释一下 Spring 的 AOP 原理", title), false);
+	assert.equal(shouldReadCurrentNote("今天天气怎么样", title), false);
+	assert.equal(shouldReadCurrentNote("把这句话翻译成英文", title), false);
 });
 
 // ---------------- 接口 ----------------
@@ -332,7 +345,146 @@ test("POST /api/ask 真跑一轮工具调用再流式出答案", async () => {
 			JSON.stringify(seen[0].messages),
 			/CAS 是一条 CPU 级别的原子指令/,
 		);
-		assert.equal(seen[0].tools.length, 3, "三个工具定义要一起发上去");
+		assert.equal(seen[0].tools.length, 5, "站内与联网工具要一起发上去");
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+});
+
+test("通用问题不预读笔记，也不被迫检索站内", async () => {
+	resetIndexCache();
+	const env = envWithAssets();
+	const originalFetch = globalThis.fetch;
+	const seen = [];
+
+	globalThis.fetch = async (_url, init) => {
+		seen.push(JSON.parse(String(init?.body ?? "{}")));
+		return sseResponse([
+			{ model: "test-model", choices: [{ delta: { content: "AOP 是面向切面编程。" } }] },
+			{ model: "test-model", choices: [{ delta: {}, finish_reason: "stop" }], usage: { total_tokens: 80 } },
+		]);
+	};
+
+	try {
+		const response = await call(
+			"/api/ask",
+			{
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					question: "解释一下 Spring 的 AOP 原理",
+					note: {
+						slug: "java-cas",
+						title: "什么是 Java 的 CAS 操作？",
+						url: "/posts/java-cas/",
+					},
+				}),
+			},
+			env,
+		);
+
+		const events = await readEvents(response);
+		assert.equal(
+			events.filter((event) => event.type === "tool").length,
+			0,
+			"通用问题不该有任何工具调用",
+		);
+		assert.doesNotMatch(
+			JSON.stringify(seen[0].messages),
+			/CAS 是一条 CPU 级别的原子指令/,
+			"当前笔记全文不该被塞进通用问题的上下文",
+		);
+		const done = events.find((event) => event.type === "done");
+		assert.equal(done.route, "general");
+		assert.equal(done.rounds, 1);
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+});
+
+test("需要外部资料时会联网搜索，并把网页来源标记为 W 编号", async () => {
+	resetIndexCache();
+	const env = envWithAssets();
+	const originalFetch = globalThis.fetch;
+	let modelCalls = 0;
+
+	globalThis.fetch = async (url, init) => {
+		const target = String(url);
+		if (target.includes("bing.com/search")) {
+			return new Response(
+				`<?xml version="1.0"?><rss><channel>
+					<item><title>Cloudflare Workers changelog</title><link>https://developers.cloudflare.com/workers/platform/changelog/</link><description>Workers runtime updates.</description></item>
+				</channel></rss>`,
+				{ status: 200, headers: { "content-type": "application/rss+xml" } },
+			);
+		}
+
+		modelCalls += 1;
+		if (modelCalls === 1) {
+			return sseResponse([
+				{
+					model: "test-model",
+					choices: [
+						{
+							delta: {
+								tool_calls: [
+									{
+										index: 0,
+										id: "call-web",
+										type: "function",
+										function: {
+											name: "web_search",
+											arguments: '{"query":"Cloudflare Workers latest release"}',
+										},
+									},
+								],
+							},
+						},
+					],
+				},
+				{ choices: [{ delta: {}, finish_reason: "tool_calls" }], usage: { total_tokens: 90 } },
+			]);
+		}
+
+		return sseResponse([
+			{
+				model: "test-model",
+				choices: [{ delta: { content: "可以看官方 changelog [W1]。" } }],
+			},
+			{ choices: [{ delta: {}, finish_reason: "stop" }], usage: { total_tokens: 160 } },
+		]);
+	};
+
+	try {
+		const response = await call(
+			"/api/ask",
+			{
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ question: "Cloudflare Workers 最近有什么更新？" }),
+			},
+			env,
+		);
+
+		const events = await readEvents(response);
+		const search = events.find(
+			(event) =>
+				event.type === "tool" &&
+				event.name === "web_search" &&
+				event.state === "done",
+		);
+		assert.ok(search);
+		assert.match(search.summary, /1 条网页/);
+
+		const sources = events.find((event) => event.type === "sources");
+		assert.ok(sources);
+		assert.equal(sources.items[0].id, "W1");
+		assert.equal(sources.items[0].kind, "web");
+		assert.equal(sources.items[0].cited, true);
+
+		const done = events.find((event) => event.type === "done");
+		assert.equal(done.route, "web");
+		assert.equal(done.citations, 1);
 	} finally {
 		globalThis.fetch = originalFetch;
 	}

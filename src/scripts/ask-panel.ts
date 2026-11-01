@@ -2,8 +2,8 @@
  * 笔记页 AI 助手（侧边抽屉）
  *
  * 数据来源：POST /api/ask（SSE）。后端会自己跑 agent 循环：
- *   读当前笔记 → 模型思考（reasoning）→ 需要时调工具（read_note / search_notes / related_notes）
- *   → 再想 → 边生成边吐。
+ *   判断知识来源 → 需要时调工具（读笔记 / 站内检索 / 联网搜索 / 读网页）
+ *   → 再想 → 边生成边吐。通用问题不会强制先读当前笔记。
  *
  * 这里只负责：把每类事件画成对应 UI、保持自动滚动、能中途停止。
  */
@@ -129,10 +129,14 @@ function suggestionsFor(current: NoteRef | null): string[] {
 			"这篇讲了什么？",
 			"用一句话概括",
 			"有哪些容易踩的坑？",
-			"还有哪些相关的笔记？",
+			"顺便查一下最新的官方文档",
 		];
 	}
-	return ["这个博客都写了什么？", "有哪些并发相关的笔记？", "怎么刷题？"];
+	return [
+		"这个博客都写了什么？",
+		"有哪些并发相关的笔记？",
+		"最近 Cloudflare Workers 有什么更新？",
+	];
 }
 
 function nearBottom(log: HTMLElement): boolean {
@@ -147,11 +151,12 @@ export function initAskPanel(): void {
 	if (booted) return;
 	booted = true;
 
-	const root = $("#ask");
-	const panel = $("#ask-panel");
-	const log = $("#ask-log");
-	const form = $("#ask-form") as HTMLFormElement | null;
-	const input = $("#ask-input") as HTMLTextAreaElement | null;
+	// 结构由 AskPanel.astro 固定提供；这里用非空断言，避免闭包里反复判空。
+	const root = $("#ask")!;
+	const panel = $("#ask-panel")!;
+	const log = $("#ask-log")!;
+	const form = $("#ask-form") as HTMLFormElement;
+	const input = $("#ask-input") as HTMLTextAreaElement;
 	const sendButton = $("#ask-send") as HTMLButtonElement | null;
 	const stopButton = $("#ask-stop") as HTMLButtonElement | null;
 	const hint = $("#ask-hint");
@@ -352,17 +357,49 @@ export function initAskPanel(): void {
 
 	const renderSources = (
 		handle: TurnHandle,
-		items: { title?: string; url?: string }[],
+		items: {
+			id?: string;
+			kind?: string;
+			title?: string;
+			url?: string;
+			cited?: boolean;
+		}[],
+		unmarked = false,
 	) => {
 		if (items.length === 0) return;
 		handle.sources.hidden = false;
 		handle.sources.innerHTML = "";
+
+		const label = document.createElement("div");
+		label.className = "ask-sources-label";
+		label.textContent = unmarked
+			? "参考过这些资料（正文未标注编号）"
+			: "引用来源";
+		handle.sources.appendChild(label);
+
 		for (const item of items) {
 			if (!item.url) continue;
 			const link = document.createElement("a");
 			link.href = item.url;
-			link.textContent = item.title?.trim() || item.url;
 			link.title = item.url;
+			link.dataset.kind = item.kind === "web" ? "web" : "note";
+			link.dataset.cited = item.cited ? "true" : "false";
+
+			if (item.id) {
+				const id = document.createElement("span");
+				id.className = "ask-source-id";
+				id.textContent = `[${item.id}]`;
+				link.appendChild(id);
+			}
+
+			const kind = document.createElement("span");
+			kind.className = "ask-source-kind";
+			kind.textContent = item.kind === "web" ? "网页" : "笔记";
+			link.appendChild(kind);
+
+			const title = document.createElement("span");
+			title.textContent = item.title?.trim() || item.url;
+			link.appendChild(title);
 			handle.sources.appendChild(link);
 		}
 	};
@@ -437,7 +474,14 @@ export function initAskPanel(): void {
 		if (type === "sources") {
 			renderSources(
 				handle,
-				(event.items ?? []) as { title?: string; url?: string }[],
+				(event.items ?? []) as {
+					id?: string;
+					kind?: string;
+					title?: string;
+					url?: string;
+					cited?: boolean;
+				}[],
+				event.unmarked === true,
 			);
 			return;
 		}
@@ -448,7 +492,15 @@ export function initAskPanel(): void {
 			const ms = Number(event.ms ?? 0);
 			const rounds = Number(event.rounds ?? 1);
 			const model = String(event.model ?? "");
+			const route = String(event.route ?? "general");
+			const routeLabel: Record<string, string> = {
+				general: "通用回答",
+				notes: "站内笔记",
+				web: "联网资料",
+				mixed: "笔记 + 联网",
+			};
 			handle.meta.textContent = [
+				routeLabel[route] ?? "",
 				rounds > 1 ? `${rounds} 轮` : "",
 				ms ? `${(ms / 1000).toFixed(1)}s` : "",
 				model,

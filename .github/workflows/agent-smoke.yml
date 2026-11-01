@@ -1,0 +1,24 @@
+name: Agent smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "worker/ask.js"
+      - "worker/lib/agent.js"
+      - "worker/lib/notes-index.js"
+      - "worker/lib/web.js"
+      - "scripts/ask-regression.mjs"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run Agent regression
+        run: node scripts/ask-regression.mjs https://wkb.wkb109033.workers.dev

@@ -20,6 +20,7 @@
     "lint": "biome check --write ./src",
     "test": "node scripts/run-tests.mjs",
     "smoke:comments": "node scripts/comments-smoke.mjs",
+    "smoke:ask": "node scripts/ask-regression.mjs",
     "preinstall": "npx only-allow pnpm"
   },
   "dependencies": {
