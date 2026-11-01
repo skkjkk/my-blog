@@ -18,6 +18,7 @@
 		"directory": "./dist",
 		"binding": "ASSETS",
 		"not_found_handling": "404-page",
-		"run_worker_first": ["/api/*"]
+		// /mcp 不是静态文件，必须让 Worker 先接；否则会被 asset 404 兜底吃掉
+		"run_worker_first": ["/api/*", "/mcp", "/mcp/*"]
 	}
 }
