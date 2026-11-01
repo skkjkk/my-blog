@@ -5,6 +5,7 @@ import "@fontsource/roboto/700.css";
 
 import ConfigCarrier from "@components/ConfigCarrier.astro";
 import AIChatWidget from "@components/control/AIChatWidget.astro";
+import CommandPalette from "@components/control/CommandPalette.svelte";
 import { profileConfig, siteConfig } from "@/config";
 import {
 	AUTO_MODE,
@@ -171,6 +172,9 @@ const bannerOffset =
 		<slot />
 
 		<AIChatWidget />
+
+		<!-- ⌘K 命令面板：挂在 swup 容器外，切页面后依然可用 -->
+		<CommandPalette client:only="svelte" />
 
 		<!-- increase the page height during page transition to prevent the scrolling animation from jumping -->
 		<div id="page-height-extend" class="hidden h-[300vh]"></div>
