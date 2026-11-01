@@ -31,6 +31,11 @@ A static blog template built with [Astro](https://astro.build).
 - [x] Table of contents
 - [x] RSS feed
 
+## 💬 评论区
+
+评论是自己的：Cloudflare Worker + D1，匿名可评、后台可审核。
+详见 [docs/comments.md](docs/comments.md)。
+
 ## 🚀 Getting Started
 
 1. Create your blog repository:
@@ -97,3 +102,4 @@ Check out the [Contributing Guide](https://github.com/saicaca/fuwari/blob/main/C
 This project is licensed under the MIT License.
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fsaicaca%2Ffuwari.svg?type=large&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fsaicaca%2Ffuwari?ref=badge_large&issueType=license)
+

@@ -133,3 +133,24 @@ test("缺 slug 报 400", async () => {
 	const response = await call("/api/comments", {}, env);
 	assert.equal(response.status, 400);
 });
+
+test("软删除的评论显示占位，回复不塌", async () => {
+	const env = createEnv();
+	await seed(env, [
+		{ clientId: "c1", createdAt: "2026-01-01T00:00:00.000Z", content: "原始内容", status: "deleted", name: "某人" },
+		{ clientId: "c2", createdAt: "2026-01-02T00:00:00.000Z", content: "回复还在", parentId: 1, rootId: 1, depth: 1 },
+	]);
+	const body = await (await call("/api/comments?slug=%2Fposts%2Fdemo%2F", {}, env)).json();
+	assert.equal(body.items.length, 1);
+	assert.equal(body.items[0].content, "该评论已被删除");
+	assert.equal(body.items[0].name, "已删除");
+	assert.equal(body.items[0].replies.length, 1);
+	assert.equal(body.items[0].replies[0].content, "回复还在");
+	assert.equal(JSON.stringify(body).includes("原始内容"), false);
+});
+
+test("D1 未绑定时返回 503 而不是 500", async () => {
+	const env = createEnv({ DB: undefined });
+	const response = await call("/api/comments?slug=%2Fposts%2Fdemo%2F", {}, env);
+	assert.equal(response.status, 503);
+});

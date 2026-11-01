@@ -36,13 +36,19 @@ export function jsonResponse(body, status = 200, extraHeaders = {}) {
 	});
 }
 
-/** 只暴露给读者看的字段 */
+export const DELETED_PLACEHOLDER = "该评论已被删除";
+
+/**
+ * 只暴露给读者看的字段。
+ * 软删除的评论保留占位，避免楼中楼塌掉——但名字与正文一律抹掉。
+ */
 export function toPublicComment(row) {
+	const removed = row.status === "deleted";
 	return {
 		id: row.id,
-		name: row.name,
-		website: row.website ?? null,
-		content: row.content,
+		name: removed ? "已删除" : row.name,
+		website: removed ? null : (row.website ?? null),
+		content: removed ? DELETED_PLACEHOLDER : row.content,
 		createdAt: row.created_at,
 		isAdmin: Boolean(row.is_admin),
 		pinned: Boolean(row.pinned),
@@ -129,7 +135,7 @@ export async function handleList(request, env, ctx) {
 	try {
 		await ensureCommentsSchema(env);
 
-		let sql = `SELECT * FROM comments WHERE ${filter.clause} AND status = 'approved' AND depth = 0`;
+		let sql = `SELECT * FROM comments WHERE ${filter.clause} AND status IN ('approved', 'deleted') AND depth = 0`;
 		const params = [filter.value];
 		if (cursor) {
 			const comparison = sort === "old" ? ">" : "<";
@@ -151,7 +157,7 @@ export async function handleList(request, env, ctx) {
 		if (roots.length > 0) {
 			const placeholders = roots.map(() => "?").join(",");
 			const replyResult = await env.DB.prepare(
-				`SELECT * FROM comments WHERE root_id IN (${placeholders}) AND status = 'approved' AND depth > 0 ORDER BY created_at ASC, id ASC`,
+				`SELECT * FROM comments WHERE root_id IN (${placeholders}) AND status IN ('approved', 'deleted') AND depth > 0 ORDER BY created_at ASC, id ASC`,
 			)
 				.bind(...roots.map((row) => row.id))
 				.all();
@@ -542,4 +548,5 @@ export async function handleCreate(request, env, ctx) {
 		return jsonResponse({ error: "没发出去，稍后再试", retryable: true }, 500);
 	}
 }
+
 
