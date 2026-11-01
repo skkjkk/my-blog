@@ -435,6 +435,21 @@ async function handleOverview(request, env) {
 
 export default {
 	async fetch(request, env, ctx) {
+		try {
+			return await handleRequest(request, env, ctx);
+		} catch (error) {
+			// 任何没被接住的异常都变成可重试的 500，而不是让请求直接崩掉
+			console.error("未捕获的请求错误", error);
+			return new Response(JSON.stringify({ error: "服务出了点问题，稍后重试", retryable: true }), {
+				status: 500,
+				headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+			});
+		}
+	},
+};
+
+async function handleRequest(request, env, ctx) {
+	{
 		const url = new URL(request.url);
 		const path = url.pathname;
 
@@ -514,9 +529,6 @@ export default {
 		}
 
 		return env.ASSETS.fetch(request);
-	},
-};
-
-
-
+	}
+}
 

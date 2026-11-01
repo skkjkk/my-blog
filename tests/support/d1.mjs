@@ -57,7 +57,11 @@ export function createD1() {
 			const results = [];
 			database.db.exec("BEGIN");
 			try {
-				for (const statement of statements) results.push(await statement.run());
+				for (const statement of statements) {
+					// 与真实 D1 一致：SELECT / RETURNING 走 all()，其余走 run()
+					const isQuery = /^\s*(select|with|pragma)\b/i.test(statement.sql);
+					results.push(isQuery ? await statement.all() : await statement.run());
+				}
 				database.db.exec("COMMIT");
 			} catch (error) {
 				database.db.exec("ROLLBACK");
@@ -93,3 +97,4 @@ export function makeCaller(worker) {
 		return worker.fetch(request, env, context);
 	};
 }
+

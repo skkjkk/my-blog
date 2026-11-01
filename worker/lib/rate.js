@@ -48,26 +48,34 @@ export function rateVerdict(groups, now) {
  * 查询出错时放行（可用性优先），并标记 degraded 供上层记日志。
  */
 export async function rateCheck(db, buckets, now) {
-	const scopes = new Set(buckets.map((item) => item.scope));
-	const since = new Date(now - WINDOW_MS["1d"]).toISOString();
 	const groups = [];
 	try {
+		// 每个桶 × 每个窗口单独按该窗口自己的时间范围统计——
+		// 不能拿 1 天的范围去数 30 秒的限，否则窗口永远滑不出去。
 		for (const bucket of buckets) {
-			const { results } = await db
-				.prepare(
-					"SELECT window, COUNT(*) AS count, MIN(ts) AS first FROM comment_rate WHERE bucket = ? AND ts > ? GROUP BY window",
-				)
-				.bind(scopeKey(bucket.scope, bucket.value), since)
-				.all();
-			for (const row of results ?? []) {
-				groups.push({ scope: bucket.scope, window: row.window, count: row.count, firstTs: Date.parse(row.first) });
+			const key = scopeKey(bucket.scope, bucket.value);
+			for (const window of Object.keys(WINDOW_MS)) {
+				const since = new Date(now - WINDOW_MS[window]).toISOString();
+				const row = await db
+					.prepare(
+						"SELECT COUNT(*) AS count, MIN(ts) AS first FROM comment_rate WHERE bucket = ? AND window = ? AND ts > ?",
+					)
+					.bind(key, window, since)
+					.first();
+				if (row && Number(row.count) > 0) {
+					groups.push({
+						scope: bucket.scope,
+						window,
+						count: Number(row.count),
+						firstTs: Date.parse(row.first),
+					});
+				}
 			}
 		}
 	} catch (error) {
 		console.warn("限流查询失败，本次放行", error);
 		return { allowed: true, degraded: true };
 	}
-	void scopes;
 	return rateVerdict(groups, now);
 }
 
@@ -90,3 +98,4 @@ export async function ratePrune(db, now) {
 	const before = new Date(now - 2 * WINDOW_MS["1d"]).toISOString();
 	await db.prepare("DELETE FROM comment_rate WHERE ts < ?").bind(before).run();
 }
+
