@@ -142,6 +142,9 @@ function grade(value: Grade) {
 	state = result.state;
 	persist();
 
+	// 上报聚合计数（数据台用来找「总记不住」的题），失败不影响刷题
+	reportGrade(item.slug, value);
+
 	const when =
 		result.card.interval === 0
 			? "今天再练一次"
@@ -149,6 +152,25 @@ function grade(value: Grade) {
 	flash(`${GRADE_LABEL[value].text} · 下次复习：${when}`);
 
 	next();
+}
+
+/** 上报一次评分：只发聚合计数，不带任何身份信息 */
+function reportGrade(slug: string, value: Grade) {
+	try {
+		const body = JSON.stringify({ slug, grade: value });
+		if (navigator.sendBeacon) {
+			navigator.sendBeacon(url("/api/quiz/grade"), new Blob([body], { type: "application/json" }));
+			return;
+		}
+		void fetch(url("/api/quiz/grade"), {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body,
+			keepalive: true,
+		}).catch(() => {});
+	} catch {
+		// 统计失败不影响刷题
+	}
 }
 
 function toggleCheck(i: number) {

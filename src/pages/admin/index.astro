@@ -148,6 +148,33 @@ import Layout from "@layouts/Layout.astro";
 					<ol class="rank" id="searches"></ol>
 				</section>
 
+				<!-- 零结果搜索词：直接就是选题清单 -->
+				<section class="card span-4">
+					<div class="card-head">
+						<h2>搜了却没有的</h2>
+						<p class="card-note" id="zero-note">零结果搜索词</p>
+					</div>
+					<ol class="rank" id="zero-search"></ol>
+				</section>
+
+				<!-- 最常被问：AI 提问聚类 -->
+				<section class="card span-4">
+					<div class="card-head">
+						<h2>最常被问的问题</h2>
+						<p class="card-note" id="question-note">提问原文去重后按次数排</p>
+					</div>
+					<ol class="rank" id="questions"></ol>
+				</section>
+
+				<!-- 刷题标记榜：总记不住的题 = 答案该重写 -->
+				<section class="card span-4">
+					<div class="card-head">
+						<h2>总记不住的题</h2>
+						<p class="card-note" id="quiz-note">被标「不会」最多的</p>
+					</div>
+					<ol class="rank" id="quiz-miss"></ol>
+				</section>
+
 				<!-- 写作节奏 -->
 				<section class="card span-6">
 					<div class="card-head">
@@ -1320,7 +1347,12 @@ import Layout from "@layouts/Layout.astro";
 			top: { path: string; count: number }[];
 			hours: { hour: number; count: number }[];
 			calendar: Point[];
-			search: { total: number; top: { keyword: string; count: number }[] };
+			search: {
+				total: number;
+				top: { keyword: string; count: number }[];
+				/** 搜了但零结果的词，等于「还缺的题」 */
+				zero: { keyword: string; count: number }[];
+			};
 		};
 		ai: {
 			total: number;
@@ -1335,6 +1367,11 @@ import Layout from "@layouts/Layout.astro";
 			series: Point[];
 			recent: { ts: string; question: string; model: string; ms: number; ok: number }[];
 			models: { model: string; count: number }[];
+			/** 近 90 天提问原文，前端聚类用 */
+			questions: string[];
+		};
+		quiz?: {
+			top: { slug: string; miss: number; stuck: number; total: number }[];
 		};
 	};
 
@@ -2023,12 +2060,101 @@ import Layout from "@layouts/Layout.astro";
 		renderRank("#ai-paths", data.ai.topPaths, "还没有提问记录");
 		renderContent();
 		renderLog(data);
+		renderDiagnostics(data);
 
 		const searchNote = $("#search-note");
 		if (searchNote) {
 			searchNote.textContent =
 				data.views.search.total > 0 ? `${data.range} 天内 ${fmtNum(data.views.search.total)} 次搜索` : "还没有人搜索过";
 		}
+	}
+
+	/* ================= 自我诊断：搜不到什么 / 最常被问 / 总记不住 ================= */
+	function clusterQuestions(list: string[]) {
+		const counter = new Map<string, { count: number; sample: string }>();
+		for (const raw of list) {
+			// 去掉标点与空白再归并，「什么是 MCP？」和「什么是MCP」算同一句
+			const key = raw
+				.replace(/[\s，。？！、,.?!：:；;"'“”‘’（）()《》<>【】\[\]]/g, "")
+				.toLowerCase()
+				.slice(0, 60);
+			if (key.length < 2) continue;
+			const hit = counter.get(key);
+			if (hit) hit.count += 1;
+			else counter.set(key, { count: 1, sample: raw.trim() });
+		}
+
+		return Array.from(counter.values())
+			.sort((a, b) => b.count - a.count)
+			.slice(0, 8)
+			.map((item) => ({ keyword: item.sample, count: item.count }));
+	}
+
+	function renderDiagnostics(data: Overview) {
+		const zero = data.views.search.zero ?? [];
+		renderRank("#zero-search", zero, "最近没有搜空的关键词");
+
+		const zeroNote = $("#zero-note");
+		if (zeroNote) {
+			zeroNote.textContent =
+				zero.length === 0 ? "零结果搜索词" : `${zero.length} 个词搜不到东西，可以考虑补题`;
+		}
+
+		const questions = clusterQuestions(data.ai.questions ?? []);
+		renderRank("#questions", questions, "还没有提问记录");
+
+		const questionNote = $("#question-note");
+		if (questionNote) {
+			const raw = (data.ai.questions ?? []).length;
+			questionNote.textContent = raw === 0 ? "提问原文去重后按次数排" : `近 90 天 ${fmtNum(raw)} 条提问，去重后取前 8`;
+		}
+
+		const quizRows = (data.quiz?.top ?? []).filter((row) => row.miss > 0);
+		renderQuizRank(quizRows);
+
+		const quizNote = $("#quiz-note");
+		if (quizNote) {
+			const total = (data.quiz?.top ?? []).reduce((acc, row) => acc + row.total, 0);
+			quizNote.textContent = total === 0 ? "还没刷过题" : `累计 ${fmtNum(total)} 次评分`;
+		}
+	}
+
+	/** slug 反查文章路径（post-index.json 里的 url 都是 /posts/<slug>/） */
+	function slugToPath(slug: string) {
+		const hit = postsCache.find((post) => post.url?.includes(`/${slug}/`));
+		return hit?.url ?? `/posts/${slug}/`;
+	}
+
+	/** 刷题榜：拿 slug 找标题，通用 renderRank 只认 path/keyword，这里单独画 */
+	function renderQuizRank(rows: { slug: string; miss: number; stuck: number; total: number }[]) {
+		const box = $("#quiz-miss");
+		if (!box) return;
+		if (rows.length === 0) {
+			box.innerHTML = `<li class="empty" style="display:block">还没有人被难住，去刷几题</li>`;
+			return;
+		}
+
+		const max = Math.max(...rows.map((row) => row.miss), 1);
+		box.innerHTML = rows
+			.map((row, index) => {
+				const href = slugToPath(row.slug);
+				const label = titles.get(href) ?? row.slug;
+				return `<li>
+					<span class="rank-no">${pad(index + 1)}</span>
+					<span class="rank-body">
+						<a class="rank-title" href="${href}">${esc(label)}</a>
+						<span class="rank-track"><i data-w="${Math.round((row.miss / max) * 100)}"></i></span>
+					</span>
+					<span class="rank-count" title="卡住 ${row.stuck} 次 / 共 ${row.total} 次评分">${fmtNum(row.miss)}</span>
+				</li>`;
+			})
+			.join("");
+
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				for (const bar of box.querySelectorAll<HTMLElement>(".rank-track i")) bar.style.width = `${bar.dataset.w}%`;
+			});
+		});
 	}
 
 	let resizeTimer = 0;

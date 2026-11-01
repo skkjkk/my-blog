@@ -51,6 +51,15 @@ CREATE TABLE IF NOT EXISTS search_log (
 );
 CREATE INDEX IF NOT EXISTS idx_search_day ON search_log (day);
 
+-- 刷题评分聚合（哪些题总记不住 = 哪些答案该重写）
+CREATE TABLE IF NOT EXISTS quiz_grade (
+  slug TEXT NOT NULL,
+  grade INTEGER NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  updated TEXT NOT NULL,
+  PRIMARY KEY (slug, grade)
+);
+
 -- ==================== 评论区 ====================
 -- 设计文档：docs/superpowers/specs/2026-11-01-comments-design.md
 

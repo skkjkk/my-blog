@@ -78,11 +78,22 @@ async function callModel(env, messages, maxTokens) {
 // ---------------- 数据结构自愈 ----------------
 // 所有建表语句都是 IF NOT EXISTS，可重复执行。每个 Worker 实例第一次用到数据库时跑一遍，
 // 这样即使忘了手动执行 schema.sql，统计表也会自动出现。
-let schemaReady = null;
+// 缓存在 DB 对象上（不是模块级单例）：同一个 Worker 实例可能换绑库，测试里也会有多套库
+const schemaReady = new WeakMap();
 function ensureSchema(env) {
 	if (!env?.DB) return Promise.resolve();
-	if (!schemaReady) {
-		schemaReady = env.DB.batch([
+
+	const cached = schemaReady.get(env.DB);
+	if (cached) return cached;
+
+	const promise = env.DB.batch([
+			// 基础表也一起兜住：新环境忘了跑 schema.sql 时统计照样能落库
+			env.DB.prepare(
+				"CREATE TABLE IF NOT EXISTS views (day TEXT NOT NULL, path TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, path))",
+			),
+			env.DB.prepare(
+				"CREATE TABLE IF NOT EXISTS ai_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, question TEXT NOT NULL, model TEXT, ms INTEGER, tokens INTEGER, ok INTEGER NOT NULL DEFAULT 1)",
+			),
 			env.DB.prepare(
 				"CREATE TABLE IF NOT EXISTS views_hourly (day TEXT NOT NULL, hour INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, hour))",
 			),
@@ -92,12 +103,16 @@ function ensureSchema(env) {
 			env.DB.prepare(
 				"CREATE TABLE IF NOT EXISTS search_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, keyword TEXT NOT NULL, results INTEGER DEFAULT 0)",
 			),
-		]).catch((error) => {
-			schemaReady = null; // 失败就别缓存，下次重试
-			console.warn("自动建表失败", error);
-		});
-	}
-	return schemaReady;
+			env.DB.prepare(
+				"CREATE TABLE IF NOT EXISTS quiz_grade (slug TEXT NOT NULL, grade INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, updated TEXT NOT NULL, PRIMARY KEY (slug, grade))",
+			),
+	]).catch((error) => {
+		schemaReady.delete(env.DB); // 失败就别缓存，下次重试
+		console.warn("自动建表失败", error);
+	});
+
+	schemaReady.set(env.DB, promise);
+	return promise;
 }
 
 // ---------------- 工具 ----------------
@@ -276,6 +291,35 @@ async function handleSearchLog(request, env, ctx) {
 	return json({ ok: true });
 }
 
+/** 记录刷题评分：只做聚合计数，用来找出「总记不住」的题（答案该重写的那些） */
+async function handleQuizGrade(request, env, ctx) {
+	if (!env?.DB) return json({ ok: true });
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ ok: true });
+	}
+
+	const slug = String(body?.slug ?? "").trim().slice(0, 120);
+	const grade = Number(body?.grade);
+	if (!/^[a-zA-Z0-9_-]{1,120}$/.test(slug)) return json({ ok: true });
+	if (![0, 1, 2].includes(grade)) return json({ ok: true });
+
+	ctx?.waitUntil?.(
+		(async () => {
+			await ensureSchema(env);
+			await env.DB.prepare(
+				"INSERT INTO quiz_grade (slug, grade, count, updated) VALUES (?, ?, 1, ?) ON CONFLICT(slug, grade) DO UPDATE SET count = count + 1, updated = excluded.updated",
+			)
+				.bind(slug, grade, today())
+				.run();
+		})().catch(() => {}),
+	);
+
+	return json({ ok: true });
+}
+
 async function handleLogin(request, env) {
 	let body;
 	try {
@@ -351,12 +395,26 @@ async function handleOverview(request, env) {
 	let hours = [];
 	let searchTop = [];
 	let searchTotal = 0;
+	// 「自我诊断」三件套：读者搜不到什么、总记不住哪些题、最常问什么
+	let searchZero = [];
+	let quizTop = [];
+	let aiQuestions = [];
 	let aiZeroHits = 0;
 	let aiAvgHits = 0;
 	let aiTopPaths = [];
 	let calendar = [];
 	try {
-		const [hourRows, searchRows, searchTotalRow, hitsRow, hitPathRows, calendarRows] = await env.DB.batch([
+		const [
+			hourRows,
+			searchRows,
+			searchTotalRow,
+			hitsRow,
+			hitPathRows,
+			calendarRows,
+			zeroRows,
+			quizRows,
+			questionRows,
+		] = await env.DB.batch([
 			env.DB.prepare("SELECT hour, SUM(count) AS v FROM views_hourly WHERE day >= ? GROUP BY hour ORDER BY hour").bind(fromStr),
 			env.DB.prepare(
 				"SELECT keyword, COUNT(*) AS v FROM search_log WHERE day >= ? GROUP BY keyword ORDER BY v DESC LIMIT 10",
@@ -368,12 +426,30 @@ async function handleOverview(request, env) {
 			env.DB.prepare("SELECT paths FROM ai_hits WHERE day >= ? ORDER BY id DESC LIMIT 500").bind(fromStr),
 			// 日历热力图用：最近 20 周每天的阅读量（不受时间范围影响）
 			env.DB.prepare("SELECT day, SUM(count) AS v FROM views WHERE day >= ? GROUP BY day ORDER BY day").bind(daysAgo(139)),
+			// 零结果搜索词：搜了但一条都没搜到的，就是还缺的题
+			env.DB.prepare(
+				"SELECT keyword, COUNT(*) AS v FROM search_log WHERE results = 0 AND day >= ? GROUP BY keyword ORDER BY v DESC LIMIT 12",
+			).bind(fromStr),
+			// 刷题标记榜：被标「不会」最多的题
+			env.DB.prepare(
+				"SELECT slug, SUM(CASE WHEN grade = 0 THEN count ELSE 0 END) AS miss, SUM(CASE WHEN grade = 1 THEN count ELSE 0 END) AS stuck, SUM(count) AS total FROM quiz_grade GROUP BY slug ORDER BY miss DESC, total DESC LIMIT 12",
+			),
+			// 最近 90 天的提问原文，交给前端做聚类
+			env.DB.prepare("SELECT question FROM ai_log WHERE day >= ? ORDER BY id DESC LIMIT 400").bind(daysAgo(90)),
 		]);
 
 		hours = (hourRows?.results ?? []).map((row) => ({ hour: row.hour, count: row.v }));
 		calendar = (calendarRows?.results ?? []).map((row) => ({ day: row.day, count: row.v }));
 		searchTop = (searchRows?.results ?? []).map((row) => ({ keyword: row.keyword, count: row.v }));
 		searchTotal = searchTotalRow?.results?.[0]?.v ?? 0;
+		searchZero = (zeroRows?.results ?? []).map((row) => ({ keyword: row.keyword, count: row.v }));
+		quizTop = (quizRows?.results ?? []).map((row) => ({
+			slug: row.slug,
+			miss: row.miss ?? 0,
+			stuck: row.stuck ?? 0,
+			total: row.total ?? 0,
+		}));
+		aiQuestions = (questionRows?.results ?? []).map((row) => String(row.question ?? "")).filter(Boolean);
 
 		const hits = hitsRow?.results?.[0] ?? { n: 0, sum: 0, zero: 0 };
 		aiZeroHits = hits.zero ?? 0;
@@ -406,7 +482,7 @@ async function handleOverview(request, env) {
 			top: (topPages?.results ?? []).map((row) => ({ path: row.path, count: row.v })),
 			hours,
 			calendar,
-			search: { total: searchTotal, top: searchTop },
+			search: { total: searchTotal, top: searchTop, zero: searchZero },
 		},
 		ai: {
 			total: totalAi,
@@ -427,7 +503,9 @@ async function handleOverview(request, env) {
 				ok: row.ok,
 			})),
 			models: (aiModels?.results ?? []).map((row) => ({ model: row.model, count: row.v })),
+			questions: aiQuestions,
 		},
+		quiz: { top: quizTop },
 	});
 }
 
@@ -474,6 +552,11 @@ async function handleRequest(request, env, ctx) {
 			if (path === "/api/search-log") {
 				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
 				return handleSearchLog(request, env, ctx);
+			}
+
+			if (path === "/api/quiz/grade") {
+				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				return handleQuizGrade(request, env, ctx);
 			}
 
 			if (path === "/api/comments") {

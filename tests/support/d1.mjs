@@ -93,8 +93,18 @@ export function createEnv(overrides = {}) {
 export function makeCaller(worker) {
 	return async (path, init = {}, env) => {
 		const request = new Request(`https://blog.test${path}`, init);
-		const context = { waitUntil: (promise) => promise, passThroughOnException: () => {} };
-		return worker.fetch(request, env, context);
+		// 收集 ctx.waitUntil：真实 Cloudflare 里这些是后台任务，测试里必须等它们跑完，
+		// 否则「先上报再查库」的断言会和后台写入赛跑。
+		const pending = [];
+		const context = {
+			waitUntil: (promise) => {
+				pending.push(promise);
+			},
+			passThroughOnException: () => {},
+		};
+		const response = await worker.fetch(request, env, context);
+		if (pending.length > 0) await Promise.allSettled(pending);
+		return response;
 	};
 }
 
