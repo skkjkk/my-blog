@@ -1,44 +1,15 @@
 ---
-// 数据台 · 内容：写作节奏、标签分布、总记不住的题
+// 数据台 · 内容：文章表现、写作节奏、总记不住的题
 import AdminLayout from "@layouts/AdminLayout.astro";
 ---
 
-<AdminLayout title="数据台 · 内容">
+<AdminLayout title="数据台 · 内容" page="content">
 	<header class="page-head">
 		<h1>内容</h1>
-		<p>写了多少、写在哪、哪些题总记不住</p>
+		<p>哪篇有人看、哪题总记不住、下一篇写什么</p>
 	</header>
 
-	<div class="grid">
-		<!-- 写作节奏 -->
-		<section class="card span-6">
-			<div class="card-head">
-				<h2>写作节奏</h2>
-				<p class="card-note" id="rhythm-note"></p>
-			</div>
-			<div class="months" id="months"></div>
-			<dl class="facts two" id="content-facts"></dl>
-		</section>
-
-		<!-- 环形图 -->
-		<section class="card span-6">
-			<div class="card-head">
-				<h2>标签分布</h2>
-				<p class="card-note" id="tags-note"></p>
-			</div>
-			<div class="donut-wrap">
-				<svg id="donut" class="donut" viewBox="0 0 180 180" role="img" aria-label="标签占比"></svg>
-				<ul class="donut-legend" id="donut-legend"></ul>
-			</div>
-		</section>
-
-		<!-- 刷题标记榜：总记不住的题 = 答案该重写 -->
-		<section class="card span-12">
-			<div class="card-head">
-				<h2>总记不住的题</h2>
-				<p class="card-note" id="quiz-note">被标「不会」最多的</p>
-			</div>
-			<ol class="rank" id="quiz-miss"></ol>
-		</section>
+	<div class="grid" id="content-board">
+		<p class="notice">正在读取统计…</p>
 	</div>
 </AdminLayout>

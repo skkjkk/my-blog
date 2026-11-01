@@ -1,43 +1,15 @@
 ---
-// 数据台 · 概览：关键指标 + 阅读与提问趋势 + 阅读热度日历
+// 数据台 · 概览：今天怎么样，先看这一页
 import AdminLayout from "@layouts/AdminLayout.astro";
 ---
 
-<AdminLayout title="数据台 · 概览">
+<AdminLayout title="数据台 · 概览" page="overview">
 	<header class="page-head">
 		<h1>概览</h1>
-		<p>今天的阅读与提问，先看这里</p>
+		<p>阅读、提问、转化，一屏看完</p>
 	</header>
 
-	<!-- 关键指标 -->
-	<section class="kpi-grid" id="kpis"></section>
-
-	<div class="grid">
-		<!-- 组合图 -->
-		<section class="card span-12">
-			<div class="card-head">
-				<h2>阅读与提问</h2>
-				<p class="card-note" id="combo-note"></p>
-			</div>
-			<div class="legend">
-				<span><i style="background: var(--c1)"></i>阅读次数</span>
-				<span><i style="background: var(--alt)"></i>AI 提问</span>
-			</div>
-			<svg id="combo" class="chart" role="img" aria-label="每日阅读与提问"></svg>
-		</section>
-
-		<!-- 日历热力图 -->
-		<section class="card span-12">
-			<div class="card-head">
-				<h2>阅读热度日历</h2>
-				<p class="card-note" id="cal-note"></p>
-			</div>
-			<div class="cal-board" id="calendar"></div>
-			<div class="cal-legend">
-				<span>少</span>
-				<i class="cal lv0"></i><i class="cal lv1"></i><i class="cal lv2"></i><i class="cal lv3"></i><i class="cal lv4"></i>
-				<span>多</span>
-			</div>
-		</section>
+	<div class="grid" id="overview-board">
+		<p class="notice">正在读取统计…</p>
 	</div>
 </AdminLayout>

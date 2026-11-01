@@ -45,7 +45,7 @@ A static blog template built with [Astro](https://astro.build).
 | 刷题 | `/quiz/` | 143 篇面试笔记变成可刷的题：空格看答案、1/2/3 打分、按简化 SM-2 排复习、错题自动回队列 |
 | AI 助手 | 笔记页右下角气泡 / `Ctrl/⌘ + J` | 侧边抽屉里问当前这篇笔记：真流式输出、带思考过程、会自己调工具（读笔记 / 检索站内 / 找相关），`POST /api/ask`（SSE） |
 | 命令面板 | 任意页 `Ctrl/⌘ + K` | 按标题找题、跳页面、一键生成新笔记的 frontmatter |
-| 数据台 | `/admin/` | 左侧导航分五页（概览 / 读者 / AI / 内容 / 评论）：访问量之外，还有「搜了却没有的」「最常被问的」「总记不住的题」三张自我诊断榜 || MCP Server | `/mcp` | 把题库挂到 Cursor / Claude：`search` / `get_note` / `recent` 三个工具 |
+| 数据台 | `/admin/` | 左侧导航分六页（概览 / 受众 / 参与 / 内容 / AI / 评论）：SaaS 式产品分析——漏斗、留存、时段热力图、模型对比，还有「搜了却没有的」「最常被问的」「总记不住的题」三张自我诊断榜 || MCP Server | `/mcp` | 把题库挂到 Cursor / Claude：`search` / `get_note` / `recent` 三个工具 |
 | 离线 | PWA | 手机上添加到主屏幕，没网也能刷 |
 | 跨设备 | 登录 `/admin` 后自动 | 刷题进度存 D1，换设备接着刷 |
 
@@ -66,10 +66,11 @@ A static blog template built with [Astro](https://astro.build).
 worker/lib/stats.js      聚合原语：dailyAgg / periodAgg / funnel / retention /
                          heatmap / histogram / percentile / bucketCount
 worker/admin-stats.js    GET /api/admin/stats?page=ai&range=30 → { cards: [...] }
+worker/admin-pages.js    其余四页（概览 / 受众 / 参与 / 内容）的卡片构建器
 src/scripts/admin/       core(dom/api/shell) · charts(plots/matrix) · widgets · pages
 ```
 
-页面只声明「要哪些卡片」，前端按 `kind` 渲染（kpi / area / funnel / heatmap / histogram / bars / donut / table / rank / log）。
+页面只声明「要哪些卡片」，前端按 `kind` 渲染（kpi / area / funnel / heatmap / histogram / calendar / bars / donut / table / rank / log / scatter）。
 **加一张卡 = 后端加一条声明**，前端不用动。
 
 埋点入口：`POST /api/track`（前端 `src/scripts/analytics.ts`），提问由 `worker/ask.js` 在流结束时自己记（才拿得到真实首字延迟与 tokens）。

@@ -1,34 +1,68 @@
 ---
-// 数据台外壳：登录门 + 左侧导航 + 顶栏，各分页只负责自己的卡片
-// 样式与客户端逻辑都抽到了 src/styles/admin.css 与 src/scripts/admin-dash.ts
+// 数据台外壳：登录门 + 左侧导航 + 顶栏，各分页只负责声明自己的卡片
+// 样式在 src/styles/admin.css，页面逻辑在 src/scripts/admin/（按 page 名动态加载）
 import "../styles/variables.styl";
 import "../styles/admin.css";
 import Layout from "@layouts/Layout.astro";
 
 interface Props {
 	title?: string;
+	/** 页面标识，决定加载哪个看板模块：overview / audience / engagement / content / ai / comments */
+	page?: string;
 }
 
-const { title = "数据台" } = Astro.props;
+const { title = "数据台", page = "overview" } = Astro.props;
 
 const nav = [
-	{ href: "/admin/", label: "概览", hint: "关键指标、阅读与提问趋势" },
-	{ href: "/admin/reader/", label: "读者", hint: "时段、参与度、搜索词" },
-	{ href: "/admin/ai/", label: "AI", hint: "问答成功率、最常被问" },
-	{ href: "/admin/content/", label: "内容", hint: "写作节奏、题型分布" },
-	{ href: "/admin/comments/", label: "评论", hint: "审核、回复、屏蔽词" },
+	{
+		href: "/admin/",
+		label: "概览",
+		hint: "关键指标、阅读与提问趋势",
+		group: "数据",
+	},
+	{
+		href: "/admin/audience/",
+		label: "受众",
+		hint: "谁在来、什么时候来、还回不回来",
+		group: "数据",
+	},
+	{
+		href: "/admin/engagement/",
+		label: "参与",
+		hint: "搜什么、问什么、刷什么",
+		group: "数据",
+	},
+	{
+		href: "/admin/content/",
+		label: "内容",
+		hint: "文章表现、写作节奏、总记不住的题",
+		group: "数据",
+	},
+	{
+		href: "/admin/ai/",
+		label: "AI",
+		hint: "AI 产品指标：用量、延迟、模型、成本",
+		group: "数据",
+	},
+	{
+		href: "/admin/comments/",
+		label: "评论",
+		hint: "审核、回复、屏蔽词",
+		group: "管理",
+	},
 ];
 
-// 归一化当前路径：/admin/reader/ → /admin/reader
+// 归一化当前路径：/admin/audience/ → /admin/audience
 const current = Astro.url.pathname.replace(/\/+$/, "") || "/";
 const isActive = (href: string) => {
 	const target = href.replace(/\/+$/, "") || "/";
 	return target === "/admin" ? current === "/admin" : current === target;
 };
+const groups = ["数据", "管理"];
 ---
 
 <Layout title={title} noAIChat>
-	<main class="dash" id="dash">
+	<main class="dash" id="dash" data-page={page}>
 		<!-- ================= 登录 ================= -->
 		<section class="gate" id="gate" hidden>
 			<div class="gate-card">
@@ -60,31 +94,33 @@ const isActive = (href: string) => {
 					</div>
 				</div>
 
-				<span class="side-group">浏览</span>
-				<nav class="side-nav" aria-label="数据台导航">
-					{nav.map((item) => (
-						<a
-							href={item.href}
-							title={item.hint}
-							class:list={["side-link", { "is-active": isActive(item.href) }]}
-							aria-current={isActive(item.href) ? "page" : undefined}
-							data-no-swup
-						>
-							<i></i>
-							{item.label}
-						</a>
-					))}
-				</nav>
+				{groups.map((group) => (
+					<>
+						<span class="side-group">{group}</span>
+						<nav class="side-nav" aria-label={`数据台导航 · ${group}`}>
+							{nav
+								.filter((item) => item.group === group)
+								.map((item) => (
+									<a
+										href={item.href}
+										title={item.hint}
+										class:list={["side-link", { "is-active": isActive(item.href) }]}
+										aria-current={isActive(item.href) ? "page" : undefined}
+										data-no-swup
+									>
+										<i></i>
+										{item.label}
+									</a>
+								))}
+						</nav>
+					</>
+				))}
 			</aside>
 
 			<div class="work">
 				<header class="topbar">
 					<div class="toolbar">
-						<div class="seg" id="range-seg" role="group" aria-label="时间范围">
-							<button type="button" data-range="7">7 天</button>
-							<button type="button" data-range="14" class="is-active">14 天</button>
-							<button type="button" data-range="30">30 天</button>
-						</div>
+						<div class="seg" id="range-seg" role="group" aria-label="时间范围"></div>
 						<button type="button" class="btn" id="refresh">刷新</button>
 						<a class="btn" href="/">回博客</a>
 						<button type="button" class="btn" id="logout">退出</button>
@@ -102,10 +138,12 @@ const isActive = (href: string) => {
 </Layout>
 
 <script>
-	import { initAdminDash } from "../scripts/admin-dash";
-	import { initAiBoard } from "../scripts/admin/pages/ai";
+	import { initAdminPage } from "../scripts/admin/pages";
+	import { initShell } from "../scripts/admin/core/shell";
 
-	// 新页面用卡片契约渲染，老页面继续用原来的整体接口（迁移期共存）
-	if (document.getElementById("ai-board")) initAiBoard();
-	else initAdminDash();
+	const page = document.getElementById("dash")?.dataset.page ?? "";
+	void initAdminPage(page).then((handled) => {
+		// 兜底：注册表里没有的页面至少要把登录门跑起来，别白屏
+		if (!handled) initShell({ page: page || "unknown", load: async () => "ok" });
+	});
 </script>

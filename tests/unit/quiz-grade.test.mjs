@@ -1,7 +1,7 @@
-import test from "node:test";
 import assert from "node:assert/strict";
-import { createEnv, makeCaller } from "../support/d1.mjs";
+import test from "node:test";
 import worker from "../../worker/index.js";
+import { createEnv, makeCaller } from "../support/d1.mjs";
 
 const call = makeCaller(worker);
 
@@ -31,11 +31,17 @@ test("刷题评分上报：同题同档累加，不覆盖", async () => {
 	const env = createEnv();
 
 	for (const grade of [0, 0, 2]) {
-		const response = await call("/api/quiz/grade", post("/api/quiz/grade", { slug: "java-cas", grade }), env);
+		const response = await call(
+			"/api/quiz/grade",
+			post("/api/quiz/grade", { slug: "java-cas", grade }),
+			env,
+		);
 		assert.equal(response.status, 200);
 	}
 
-	const rows = await env.DB.prepare("SELECT slug, grade, count FROM quiz_grade ORDER BY grade").all();
+	const rows = await env.DB.prepare(
+		"SELECT slug, grade, count FROM quiz_grade ORDER BY grade",
+	).all();
 	assert.deepEqual(
 		rows.results.map((row) => [row.grade, row.count]),
 		[
@@ -48,78 +54,141 @@ test("刷题评分上报：同题同档累加，不覆盖", async () => {
 test("刷题评分上报：非法 slug 与档位一律丢弃", async () => {
 	const env = createEnv();
 	// 先让 ensureSchema 把表建好（非法请求本身不建表，也不该建）
-	await call("/api/search-log", post("/api/search-log", { keyword: "warmup", results: 1 }), env);
+	await call(
+		"/api/search-log",
+		post("/api/search-log", { keyword: "warmup", results: 1 }),
+		env,
+	);
 
-	await call("/api/quiz/grade", post("/api/quiz/grade", { slug: "../../etc/passwd", grade: 0 }), env);
-	await call("/api/quiz/grade", post("/api/quiz/grade", { slug: "ok-slug", grade: 9 }), env);
-	await call("/api/quiz/grade", post("/api/quiz/grade", { slug: "", grade: 1 }), env);
+	await call(
+		"/api/quiz/grade",
+		post("/api/quiz/grade", { slug: "../../etc/passwd", grade: 0 }),
+		env,
+	);
+	await call(
+		"/api/quiz/grade",
+		post("/api/quiz/grade", { slug: "ok-slug", grade: 9 }),
+		env,
+	);
+	await call(
+		"/api/quiz/grade",
+		post("/api/quiz/grade", { slug: "", grade: 1 }),
+		env,
+	);
 
-	const rows = await env.DB.prepare("SELECT COUNT(*) AS n FROM quiz_grade").all();
+	const rows = await env.DB.prepare(
+		"SELECT COUNT(*) AS n FROM quiz_grade",
+	).all();
 	assert.equal(rows.results[0].n, 0);
 });
 
-test("诊断数据：零结果搜索词只统计 results = 0", async () => {
+test("诊断数据：零结果搜索词单独成榜，正常搜索词也还在", async () => {
 	const env = createEnv();
 	const { cookie } = await login(env);
 
-	// 建表 + 灌数据（先让 overview 跑一次，触发 ensureSchema；search_log 由 /api/search-log 建）
-	await call("/api/search-log", post("/api/search-log", { keyword: "Kubernetes", results: 0 }), env);
-	await call("/api/search-log", post("/api/search-log", { keyword: "Kubernetes", results: 0 }), env);
-	await call("/api/search-log", post("/api/search-log", { keyword: "索引", results: 7 }), env);
+	await call(
+		"/api/search-log",
+		post("/api/search-log", { keyword: "Kubernetes", results: 0 }),
+		env,
+	);
+	await call(
+		"/api/search-log",
+		post("/api/search-log", { keyword: "Kubernetes", results: 0 }),
+		env,
+	);
+	await call(
+		"/api/search-log",
+		post("/api/search-log", { keyword: "索引", results: 7 }),
+		env,
+	);
 
-	const data = await (await call("/api/admin/overview?range=30", { headers: { cookie } }, env)).json();
+	const body = await (
+		await call(
+			"/api/admin/stats?page=engagement&range=30",
+			{ headers: { cookie } },
+			env,
+		)
+	).json();
 
-	const zero = data.views.search.zero;
-	assert.equal(zero.length, 1, "只有零结果的词进榜单");
-	assert.equal(zero[0].keyword, "Kubernetes");
+	const zero = body.cards.find((card) => card.id === "zeroSearch").data.rows;
+	assert.equal(zero.length, 1, "只有零结果的词进「搜了却没有」");
+	assert.equal(zero[0].label, "Kubernetes");
 	assert.equal(zero[0].count, 2);
 
-	const top = data.views.search.top.map((row) => row.keyword);
-	assert.ok(top.includes("索引"), "正常搜索词仍进原来的榜单");
+	const top = body.cards
+		.find((card) => card.id === "searches")
+		.data.rows.map((row) => row.label);
+	assert.ok(top.includes("索引"), "正常搜索词仍进搜索榜");
 });
 
-test("诊断数据：刷题榜按「不会」次数排序，并带上总数", async () => {
+test("诊断数据：刷题榜按「不会」次数排序", async () => {
 	const env = createEnv();
 	const { cookie } = await login(env);
 
-	await call("/api/quiz/grade", post("/api/quiz/grade", { slug: "easy", grade: 2 }), env);
-	await call("/api/quiz/grade", post("/api/quiz/grade", { slug: "hard", grade: 0 }), env);
-	await call("/api/quiz/grade", post("/api/quiz/grade", { slug: "hard", grade: 0 }), env);
-	await call("/api/quiz/grade", post("/api/quiz/grade", { slug: "hard", grade: 1 }), env);
+	await call(
+		"/api/quiz/grade",
+		post("/api/quiz/grade", { slug: "easy", grade: 2 }),
+		env,
+	);
+	await call(
+		"/api/quiz/grade",
+		post("/api/quiz/grade", { slug: "hard", grade: 0 }),
+		env,
+	);
+	await call(
+		"/api/quiz/grade",
+		post("/api/quiz/grade", { slug: "hard", grade: 0 }),
+		env,
+	);
+	await call(
+		"/api/quiz/grade",
+		post("/api/quiz/grade", { slug: "hard", grade: 1 }),
+		env,
+	);
 
-	const data = await (await call("/api/admin/overview?range=30", { headers: { cookie } }, env)).json();
-
-	assert.equal(data.quiz.top[0].slug, "hard");
-	assert.equal(data.quiz.top[0].miss, 2);
-	assert.equal(data.quiz.top[0].stuck, 1);
-	assert.equal(data.quiz.top[0].total, 3);
-});
-
-test("诊断数据：overview 带回提问原文供前端聚类", async () => {
-	const env = createEnv();
-	const { cookie } = await login(env);
-
-	// ai_log 由 /api/chat 写入；这里直接建表灌两条，避免真的去调模型
-	await call("/api/admin/overview", { headers: { cookie } }, env);
-	await env.DB.prepare(
-		"CREATE TABLE IF NOT EXISTS ai_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, question TEXT, model TEXT, ms INTEGER, tokens INTEGER, ok INTEGER)",
-	).run();
-	const today = new Date().toISOString().slice(0, 10);
-	for (const question of ["什么是 MCP？", "什么是MCP"]) {
-		await env.DB.prepare(
-			"INSERT INTO ai_log (ts, day, question, model, ms, tokens, ok) VALUES (?, ?, ?, 'test', 100, 10, 1)",
+	const body = await (
+		await call(
+			"/api/admin/stats?page=content&range=30",
+			{ headers: { cookie } },
+			env,
 		)
-			.bind(new Date().toISOString(), today, question)
-			.run();
-	}
+	).json();
 
-	const data = await (await call("/api/admin/overview?range=30", { headers: { cookie } }, env)).json();
-	assert.equal(data.ai.questions.length, 2);
-	assert.ok(data.ai.questions.includes("什么是 MCP？"));
+	const rows = body.cards.find((card) => card.id === "quiz").data.rows;
+	assert.equal(rows[0].label, "hard", "被标「不会」最多的排第一");
+	assert.equal(rows[0].count, 2);
+});
+
+test("诊断数据：AI 页把「零命中」的提问单独列出来", async () => {
+	const env = createEnv();
+	const { cookie } = await login(env);
+
+	// 先用 /api/track 把 events 表建出来，再手动灌一条零命中的提问
+	await call(
+		"/api/track",
+		post("/api/track", { type: "panel_open", path: "/posts/x/" }),
+		env,
+	);
+	const today = new Date(Date.now() + 8 * 3600 * 1000)
+		.toISOString()
+		.slice(0, 10);
+	await env.DB.prepare(
+		"INSERT INTO events (ts, day, hour, dow, vid, sid, type, path, ms, ttft, tokens, ok, err, n, hits, tag, text, meta) VALUES (?, ?, 10, 2, 'v1', 's1', 'ask', '/posts/x/', 3000, 900, 100, 1, '', 0, 0, 'auto', ?, '')",
+	)
+		.bind(new Date().toISOString(), today, "这个问题笔记里没写")
+		.run();
+
+	const body = await (
+		await call("/api/admin/stats?page=ai&range=7", { headers: { cookie } }, env)
+	).json();
+
+	const zero = body.cards.find((card) => card.id === "zeroHits").data.rows;
+	assert.equal(zero.length, 1);
+	assert.equal(zero[0].label, "这个问题笔记里没写");
 });
 
 test("未登录拿不到诊断数据", async () => {
 	const env = createEnv();
-	const response = await call("/api/admin/overview", {}, env);
+	const response = await call("/api/admin/stats?page=overview", {}, env);
 	assert.equal(response.status, 401);
 });

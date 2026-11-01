@@ -144,7 +144,10 @@ const DONUT_COLORS = [
 ];
 
 /** 环图 + 图例（模型分布这类「占比」问题） */
-export function drawDonut(el: HTMLElement, data: { rows: Row[] }): void {
+export function drawDonut(
+	el: HTMLElement,
+	data: { rows: Row[]; unit?: string },
+): void {
 	const rows = (data.rows ?? []).filter((row) => Number(row.count) > 0);
 	const total = rows.reduce((acc, row) => acc + Number(row.count), 0);
 	if (total === 0) {
@@ -179,8 +182,59 @@ export function drawDonut(el: HTMLElement, data: { rows: Row[] }): void {
 	el.innerHTML = `<div class="donut-wrap">
 		<svg viewBox="0 0 160 160" class="donut" role="img">${arcs}
 			<text x="80" y="78" text-anchor="middle" class="dn">${fmtNum(total)}</text>
-			<text x="80" y="94" text-anchor="middle" class="ds">次提问</text>
+			<text x="80" y="94" text-anchor="middle" class="ds">${esc(data.unit ?? "次提问")}</text>
 		</svg>
 		<ul class="donut-legend">${legend}</ul>
 	</div>`;
+}
+
+type ScatterPoint = { x: number; y: number; label: string };
+
+/** 散点：字数 × 阅读次数——长文章到底有没有人看 */
+export function drawScatter(
+	el: HTMLElement,
+	data: { points: ScatterPoint[]; xLabel?: string; yLabel?: string },
+): void {
+	const points = (data.points ?? []).filter(
+		(point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+	);
+	if (points.length === 0) {
+		el.innerHTML = `<p class="empty">还没有数据</p>`;
+		return;
+	}
+
+	const W = Math.max(240, Math.round(el.clientWidth || 320));
+	const H = 200;
+	const L = 34;
+	const R = 12;
+	const T = 10;
+	const B = 28;
+	const plotW = W - L - R;
+	const plotH = H - T - B;
+
+	const maxX = Math.max(...points.map((point) => point.x), 1);
+	const maxY = Math.max(...points.map((point) => point.y), 1);
+	const xOf = (value: number) => L + (value / maxX) * plotW;
+	const yOf = (value: number) => T + plotH - (value / maxY) * plotH;
+
+	const grid = [0, 0.5, 1]
+		.map((ratio) => {
+			const y = T + ratio * plotH;
+			return `<line class="gl" x1="${L}" y1="${y.toFixed(1)}" x2="${W - R}" y2="${y.toFixed(1)}" />
+				<text class="ax" x="${L - 5}" y="${(y + 3).toFixed(1)}" text-anchor="end">${Math.round(maxY * (1 - ratio))}</text>`;
+		})
+		.join("");
+
+	const dots = points
+		.map(
+			(point) =>
+				`<circle cx="${xOf(point.x).toFixed(1)}" cy="${yOf(point.y).toFixed(1)}" r="3" fill="var(--c2)" opacity="0.75">
+					<title>${point.label} · ${Math.round(point.x)} 字 · ${Math.round(point.y)} 次阅读</title></circle>`,
+		)
+		.join("");
+
+	el.innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">
+			${grid}${dots}
+			<text class="ax" x="${(L + plotW / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle">${data.xLabel ?? "字数"}</text>
+		</svg>`;
 }

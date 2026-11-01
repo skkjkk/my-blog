@@ -1,12 +1,20 @@
 /**
- * GET /api/admin/stats?page=ai&range=30
+ * GET /api/admin/stats?page=ai|overview|audience|engagement|content&range=30
  *
  * 数据台 v2 接口：按「卡片」返回，而不是按数据表返回。
  * 前端只认 kind，不关心 SQL；后端只关心卡片 id。
  * 加一张卡 = 这里加一条声明。
  */
 
+import {
+	audienceCards,
+	contentCards,
+	engagementCards,
+	overviewCards,
+} from "./admin-pages.js";
 import { isAdmin } from "./lib/admin.js";
+import { ensureCommentsSchema } from "./lib/db.js";
+import { ensureSchema } from "./lib/schema.js";
 import {
 	bjDay,
 	bucketCount,
@@ -440,6 +448,14 @@ async function aiCards(env, range) {
 	];
 }
 
+const PAGES = {
+	ai: aiCards,
+	overview: overviewCards,
+	audience: audienceCards,
+	engagement: engagementCards,
+	content: contentCards,
+};
+
 export async function handleAdminStats(request, env) {
 	if (!(await isAdmin(request, env))) return json({ error: "未登录" }, 401);
 	if (!env?.DB) return json({ error: "数据库还没绑定" }, 500);
@@ -448,12 +464,18 @@ export async function handleAdminStats(request, env) {
 	const page = String(url.searchParams.get("page") ?? "ai");
 	const range = rangeOf(url.searchParams);
 
-	if (page !== "ai") return json({ error: `还没做这个页面：${page}` }, 404);
+	const build = PAGES[page];
+	if (!build) return json({ error: `没有这个页面：${page}` }, 404);
+
+	// 新环境可能还没跑过 schema.sql：读之前先兜底建表（含评论表），别让看板 500
+	await ensureSchema(env);
+	await ensureCommentsSchema(env);
 
 	try {
-		const cards = await aiCards(env, range);
+		const cards = await build(env, range);
+		// 事件流的起点：页面据此说明「漏斗/留存从哪天开始才有意义」
 		const first = await env.DB.prepare(
-			"SELECT MIN(day) AS d, COUNT(*) AS n FROM events WHERE type = 'ask'",
+			"SELECT MIN(day) AS d, COUNT(*) AS n FROM events",
 		)
 			.first()
 			.catch(() => null);

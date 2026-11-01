@@ -6,7 +6,7 @@
  *   POST /api/hit             记录一次页面访问（公开，用于统计阅读量）
  *   POST /api/admin/login     后台登录（密码 → httpOnly cookie）
  *   POST /api/admin/logout    退出
- *   GET  /api/admin/overview  后台数据（需要登录）
+ *   GET  /api/admin/stats     数据台卡片数据（需要登录，见 admin-stats.js）
  *   其它                      交给静态资源（dist）
  *
  * 用到的资源：
@@ -28,7 +28,8 @@ import {
 	handleAdminSettings,
 } from "./comments-admin.js";
 import { adminCookieValue, isAdmin, safeEqual } from "./lib/admin.js";
-import { EVENTS_DDL, recordEvent } from "./lib/events.js";
+import { recordEvent } from "./lib/events.js";
+import { ensureSchema } from "./lib/schema.js";
 import { describeMcp, handleMcp, mcpJson } from "./mcp.js";
 
 const DEFAULT_BASE_URL = "https://api.hcnsec.cn/v1/chat/completions";
@@ -95,51 +96,6 @@ async function callModel(env, messages, maxTokens) {
 	}
 }
 
-// ---------------- 数据结构自愈 ----------------
-// 所有建表语句都是 IF NOT EXISTS，可重复执行。每个 Worker 实例第一次用到数据库时跑一遍，
-// 这样即使忘了手动执行 schema.sql，统计表也会自动出现。
-// 缓存在 DB 对象上（不是模块级单例）：同一个 Worker 实例可能换绑库，测试里也会有多套库
-const schemaReady = new WeakMap();
-function ensureSchema(env) {
-	if (!env?.DB) return Promise.resolve();
-
-	const cached = schemaReady.get(env.DB);
-	if (cached) return cached;
-
-	const promise = env.DB.batch([
-		// 基础表也一起兜住：新环境忘了跑 schema.sql 时统计照样能落库
-		env.DB.prepare(
-			"CREATE TABLE IF NOT EXISTS views (day TEXT NOT NULL, path TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, path))",
-		),
-		env.DB.prepare(
-			"CREATE TABLE IF NOT EXISTS ai_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, question TEXT NOT NULL, model TEXT, ms INTEGER, tokens INTEGER, ok INTEGER NOT NULL DEFAULT 1)",
-		),
-		env.DB.prepare(
-			"CREATE TABLE IF NOT EXISTS views_hourly (day TEXT NOT NULL, hour INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, hour))",
-		),
-		env.DB.prepare(
-			"CREATE TABLE IF NOT EXISTS ai_hits (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, hits INTEGER NOT NULL DEFAULT 0, paths TEXT DEFAULT '')",
-		),
-		env.DB.prepare(
-			"CREATE TABLE IF NOT EXISTS search_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, keyword TEXT NOT NULL, results INTEGER DEFAULT 0)",
-		),
-		env.DB.prepare(
-			"CREATE TABLE IF NOT EXISTS quiz_grade (slug TEXT NOT NULL, grade INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, updated TEXT NOT NULL, PRIMARY KEY (slug, grade))",
-		),
-		env.DB.prepare(
-			"CREATE TABLE IF NOT EXISTS quiz_state (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL, updated TEXT NOT NULL)",
-		),
-		// 数据台 v2：全站事件表（埋点只有这一张，聚合见 worker/lib/stats.js）
-		...EVENTS_DDL.map((sql) => env.DB.prepare(sql)),
-	]).catch((error) => {
-		schemaReady.delete(env.DB); // 失败就别缓存，下次重试
-		console.warn("自动建表失败", error);
-	});
-
-	schemaReady.set(env.DB, promise);
-	return promise;
-}
-
 // ---------------- 工具 ----------------
 
 function json(body, status = 200, extraHeaders = {}) {
@@ -156,12 +112,6 @@ function json(body, status = 200, extraHeaders = {}) {
 /** 北京时间的 YYYY-MM-DD */
 function today() {
 	return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
-}
-
-function daysAgo(days) {
-	return new Date(Date.now() + 8 * 3600 * 1000 - days * 86400000)
-		.toISOString()
-		.slice(0, 10);
 }
 
 // 管理员 cookie 与登录态校验统一放在 worker/lib/admin.js（评论管理接口也用它）
@@ -511,228 +461,6 @@ async function handleLogin(request, env) {
 	return json({ ok: true }, 200, { "set-cookie": cookie });
 }
 
-async function handleOverview(request, env) {
-	if (!(await isAdmin(request, env))) return json({ error: "未登录" }, 401);
-	if (!env?.DB) return json({ error: "数据库还没绑定" }, 500);
-	await ensureSchema(env);
-
-	const requestUrl = new URL(request.url);
-	const rangeParam = Number(requestUrl.searchParams.get("range") ?? 14);
-	const range = [7, 14, 30].includes(rangeParam) ? rangeParam : 14;
-
-	const todayStr = today();
-	const yesterdayStr = daysAgo(1);
-	const fromStr = daysAgo(range - 1);
-
-	const [
-		totalViews,
-		todayViews,
-		yesterdayViews,
-		series,
-		topPages,
-		aiTotal,
-		aiToday,
-		aiYesterday,
-		aiAvg,
-		aiTokens,
-		aiRecent,
-		aiModels,
-		aiSeries,
-		aiOkTotal,
-	] = await env.DB.batch([
-		env.DB.prepare("SELECT COALESCE(SUM(count), 0) AS v FROM views"),
-		env.DB.prepare(
-			"SELECT COALESCE(SUM(count), 0) AS v FROM views WHERE day = ?",
-		).bind(todayStr),
-		env.DB.prepare(
-			"SELECT COALESCE(SUM(count), 0) AS v FROM views WHERE day = ?",
-		).bind(yesterdayStr),
-		env.DB.prepare(
-			"SELECT day, SUM(count) AS v FROM views WHERE day >= ? GROUP BY day ORDER BY day",
-		).bind(fromStr),
-		env.DB.prepare(
-			"SELECT path, SUM(count) AS v FROM views WHERE day >= ? GROUP BY path ORDER BY v DESC LIMIT 60",
-		).bind(fromStr),
-		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log"),
-		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log WHERE day = ?").bind(
-			todayStr,
-		),
-		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log WHERE day = ?").bind(
-			yesterdayStr,
-		),
-		env.DB.prepare(
-			"SELECT AVG(ms) AS v FROM ai_log WHERE ok = 1 AND day >= ?",
-		).bind(fromStr),
-		env.DB.prepare("SELECT COALESCE(SUM(tokens), 0) AS v FROM ai_log"),
-		env.DB.prepare(
-			"SELECT ts, question, model, ms, ok FROM ai_log ORDER BY id DESC LIMIT 30",
-		),
-		env.DB.prepare(
-			"SELECT model, COUNT(*) AS v FROM ai_log GROUP BY model ORDER BY v DESC LIMIT 5",
-		),
-		env.DB.prepare(
-			"SELECT day, COUNT(*) AS v FROM ai_log WHERE day >= ? GROUP BY day ORDER BY day",
-		).bind(fromStr),
-		env.DB.prepare("SELECT COALESCE(SUM(ok), 0) AS v FROM ai_log"),
-	]);
-
-	const totalAi = aiTotal?.results?.[0]?.v ?? 0;
-	const okAi = aiOkTotal?.results?.[0]?.v ?? 0;
-
-	// 以下统计依赖后加的表，缺了也不该让整个后台挂掉
-	let hours = [];
-	let searchTop = [];
-	let searchTotal = 0;
-	// 「自我诊断」三件套：读者搜不到什么、总记不住哪些题、最常问什么
-	let searchZero = [];
-	let quizTop = [];
-	let aiQuestions = [];
-	let aiZeroHits = 0;
-	let aiAvgHits = 0;
-	let aiTopPaths = [];
-	let calendar = [];
-	try {
-		const [
-			hourRows,
-			searchRows,
-			searchTotalRow,
-			hitsRow,
-			hitPathRows,
-			calendarRows,
-			zeroRows,
-			quizRows,
-			questionRows,
-		] = await env.DB.batch([
-			env.DB.prepare(
-				"SELECT hour, SUM(count) AS v FROM views_hourly WHERE day >= ? GROUP BY hour ORDER BY hour",
-			).bind(fromStr),
-			env.DB.prepare(
-				"SELECT keyword, COUNT(*) AS v FROM search_log WHERE day >= ? GROUP BY keyword ORDER BY v DESC LIMIT 10",
-			).bind(fromStr),
-			env.DB.prepare(
-				"SELECT COUNT(*) AS v FROM search_log WHERE day >= ?",
-			).bind(fromStr),
-			env.DB.prepare(
-				"SELECT COUNT(*) AS n, COALESCE(SUM(hits), 0) AS sum, COALESCE(SUM(CASE WHEN hits = 0 THEN 1 ELSE 0 END), 0) AS zero FROM ai_hits WHERE day >= ?",
-			).bind(fromStr),
-			env.DB.prepare(
-				"SELECT paths FROM ai_hits WHERE day >= ? ORDER BY id DESC LIMIT 500",
-			).bind(fromStr),
-			// 日历热力图用：最近 20 周每天的阅读量（不受时间范围影响）
-			env.DB.prepare(
-				"SELECT day, SUM(count) AS v FROM views WHERE day >= ? GROUP BY day ORDER BY day",
-			).bind(daysAgo(139)),
-			// 零结果搜索词：搜了但一条都没搜到的，就是还缺的题
-			env.DB.prepare(
-				"SELECT keyword, COUNT(*) AS v FROM search_log WHERE results = 0 AND day >= ? GROUP BY keyword ORDER BY v DESC LIMIT 12",
-			).bind(fromStr),
-			// 刷题标记榜：被标「不会」最多的题
-			env.DB.prepare(
-				"SELECT slug, SUM(CASE WHEN grade = 0 THEN count ELSE 0 END) AS miss, SUM(CASE WHEN grade = 1 THEN count ELSE 0 END) AS stuck, SUM(count) AS total FROM quiz_grade GROUP BY slug ORDER BY miss DESC, total DESC LIMIT 12",
-			),
-			// 最近 90 天的提问原文，交给前端做聚类
-			env.DB.prepare(
-				"SELECT question FROM ai_log WHERE day >= ? ORDER BY id DESC LIMIT 400",
-			).bind(daysAgo(90)),
-		]);
-
-		hours = (hourRows?.results ?? []).map((row) => ({
-			hour: row.hour,
-			count: row.v,
-		}));
-		calendar = (calendarRows?.results ?? []).map((row) => ({
-			day: row.day,
-			count: row.v,
-		}));
-		searchTop = (searchRows?.results ?? []).map((row) => ({
-			keyword: row.keyword,
-			count: row.v,
-		}));
-		searchTotal = searchTotalRow?.results?.[0]?.v ?? 0;
-		searchZero = (zeroRows?.results ?? []).map((row) => ({
-			keyword: row.keyword,
-			count: row.v,
-		}));
-		quizTop = (quizRows?.results ?? []).map((row) => ({
-			slug: row.slug,
-			miss: row.miss ?? 0,
-			stuck: row.stuck ?? 0,
-			total: row.total ?? 0,
-		}));
-		aiQuestions = (questionRows?.results ?? [])
-			.map((row) => String(row.question ?? ""))
-			.filter(Boolean);
-
-		const hits = hitsRow?.results?.[0] ?? { n: 0, sum: 0, zero: 0 };
-		aiZeroHits = hits.zero ?? 0;
-		aiAvgHits = hits.n > 0 ? Number((hits.sum / hits.n).toFixed(1)) : 0;
-
-		const counter = new Map();
-		for (const row of hitPathRows?.results ?? []) {
-			for (const path of String(row.paths ?? "").split(",")) {
-				if (!path) continue;
-				counter.set(path, (counter.get(path) ?? 0) + 1);
-			}
-		}
-		aiTopPaths = Array.from(counter.entries())
-			.sort((a, b) => b[1] - a[1])
-			.slice(0, 5)
-			.map(([path, count]) => ({ path, count }));
-	} catch (error) {
-		console.warn("扩展统计不可用（表可能还没建好）", error);
-	}
-
-	return json({
-		generatedAt: new Date().toISOString(),
-		today: todayStr,
-		range,
-		views: {
-			total: totalViews?.results?.[0]?.v ?? 0,
-			today: todayViews?.results?.[0]?.v ?? 0,
-			yesterday: yesterdayViews?.results?.[0]?.v ?? 0,
-			series: (series?.results ?? []).map((row) => ({
-				day: row.day,
-				count: row.v,
-			})),
-			top: (topPages?.results ?? []).map((row) => ({
-				path: row.path,
-				count: row.v,
-			})),
-			hours,
-			calendar,
-			search: { total: searchTotal, top: searchTop, zero: searchZero },
-		},
-		ai: {
-			total: totalAi,
-			today: aiToday?.results?.[0]?.v ?? 0,
-			yesterday: aiYesterday?.results?.[0]?.v ?? 0,
-			avgMs: Math.round(aiAvg?.results?.[0]?.v ?? 0),
-			tokens: aiTokens?.results?.[0]?.v ?? 0,
-			successRate: totalAi > 0 ? Math.round((okAi / totalAi) * 100) : 100,
-			zeroHits: aiZeroHits,
-			avgHits: aiAvgHits,
-			topPaths: aiTopPaths,
-			series: (aiSeries?.results ?? []).map((row) => ({
-				day: row.day,
-				count: row.v,
-			})),
-			recent: (aiRecent?.results ?? []).slice(0, 15).map((row) => ({
-				ts: row.ts,
-				question: row.question,
-				model: row.model,
-				ms: row.ms,
-				ok: row.ok,
-			})),
-			models: (aiModels?.results ?? []).map((row) => ({
-				model: row.model,
-				count: row.v,
-			})),
-			questions: aiQuestions,
-		},
-		quiz: { top: quizTop },
-	});
-}
-
 // ---------------- 入口 ----------------
 
 export default {
@@ -884,10 +612,6 @@ async function handleRequest(request, env, ctx) {
 				if (!["GET", "POST", "DELETE"].includes(request.method))
 					return json({ error: "只支持 GET / POST / DELETE" }, 405);
 				return handleAdminKeywords(request, env);
-			}
-
-			if (path === "/api/admin/overview") {
-				return handleOverview(request, env);
 			}
 
 			// 数据台 v2：按卡片返回（worker/admin-stats.js）
