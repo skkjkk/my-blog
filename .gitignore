@@ -71,3 +71,6 @@ yarn.lock
 .preview.log
 .preview.err.log
 .tmp-build/
+
+# esbuild 在系统 TEMP 里删文件被拒时，构建改用这个本地临时目录
+.tmp/
