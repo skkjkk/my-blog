@@ -1,0 +1,11 @@
+---
+import QuizPanel from "@components/quiz/QuizPanel.svelte";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+
+const description =
+	"面试题库的自测模式：先看题自己想，再对答案，按「会 / 卡住 / 不会」打分，答不住的题会自动回到明天的队列里。";
+---
+
+<MainGridLayout title="刷题" description={description}>
+	<QuizPanel client:only="svelte" />
+</MainGridLayout>

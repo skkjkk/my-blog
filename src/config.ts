@@ -45,6 +45,10 @@ export const navBarConfig: NavBarConfig = {
 			name: "题库", // 面试笔记的总目录，见 src/pages/notes.astro
 			url: "/notes/",
 		},
+		{
+			name: "刷题", // 自测模式，见 src/pages/quiz.astro
+			url: "/quiz/",
+		},
 		LinkPreset.Archive,
 		LinkPreset.About,
 		{
