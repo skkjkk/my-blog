@@ -88,12 +88,15 @@ export function normalizeSlug(raw) {
 	return text;
 }
 
-/** 文章稳定键：内容集合里的相对路径，如 posts/hello.md */
+/**
+ * 文章稳定键 = 内容集合里的 entry.id（文件名相对路径），可能是中文，如
+ * `binlog_redo_log和undo_log的区别.md`。所以只挡危险字符，不限制字符集。
+ */
 export function normalizePostId(raw) {
 	const text = asString(raw).trim();
 	if (!text || text.length > LIMITS.slug) return null;
 	if (text.includes("..") || text.includes("?") || text.includes("#")) return null;
-	if (!/^[\w\-./%]+$/.test(text)) return null;
+	if (/[\u0000-\u001f\u007f]/.test(text)) return null;
 	return text;
 }
 
@@ -101,3 +104,4 @@ export function normalizePostId(raw) {
 export function isUuid(raw) {
 	return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(asString(raw).trim());
 }
+

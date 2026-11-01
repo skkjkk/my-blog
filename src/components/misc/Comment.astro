@@ -2,13 +2,30 @@
 // 评论区：本站自建（Cloudflare Worker + D1），不再用 giscus。
 // 这里只输出骨架与表单，真正的加载/提交逻辑在 src/scripts/comments.ts，
 // 由 Layout.astro 挂到 swup 的 page:view 上（切页才会重新初始化）。
+import { commentConfig } from "../../config";
+
 interface Props {
 	slug?: string;
 	postId?: string;
 }
 
 const { slug = Astro.url.pathname, postId = "" } = Astro.props;
+// 回滚开关：provider = "giscus" 时渲染旧的 iframe 容器（数据仍在 GitHub Discussions）
+const useGiscus = commentConfig.provider === "giscus";
 ---
+
+{useGiscus && (
+	<section class="card-base rounded-2xl px-6 py-6 mb-4 onload-animation">
+		<h2 class="text-lg font-bold mb-2 flex items-center gap-2">
+			<span class="inline-block w-1 h-5 rounded-md bg-[var(--primary)]"></span>
+			评论
+		</h2>
+		<p class="text-sm text-75 mb-5">用 GitHub 账号登录后即可留言，评论会保存到仓库的 Discussions 里。</p>
+		<div class="giscus"></div>
+	</section>
+)}
+
+{!useGiscus && (
 
 <section
 	class="comments card-base rounded-2xl px-6 py-6 mb-4 onload-animation"
@@ -90,4 +107,5 @@ const { slug = Astro.url.pathname, postId = "" } = Astro.props;
 		加载更多
 	</button>
 </section>
+)}
 

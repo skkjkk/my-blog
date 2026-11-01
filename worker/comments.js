@@ -15,6 +15,7 @@ import {
 	validName,
 } from "./lib/text.js";
 import { ensureCommentsSchema, getCommentMode } from "./lib/db.js";
+import { isAdmin } from "./lib/admin.js";
 import { hashIp, identityHash, newUid, sha256Hex, signIdentity, verifyIdentity } from "./lib/crypto.js";
 import { rateCheck, ratePrune, rateRecord } from "./lib/rate.js";
 import { classifyComment, detectBot } from "./lib/classify.js";
@@ -34,6 +35,24 @@ export function jsonResponse(body, status = 200, extraHeaders = {}) {
 			...extraHeaders,
 		},
 	});
+}
+
+export const VOLUME_LIMITS = Object.freeze({ perPost: 2000, total: 50000 });
+
+/** 体量闸门：单篇或全表到顶就拒绝新评论（保护 D1 免费额度） */
+export function volumeVerdict({ postCount = 0, totalCount = 0 } = {}) {
+	if (Number(postCount) >= VOLUME_LIMITS.perPost) return { allowed: false, reason: "per_post" };
+	if (Number(totalCount) >= VOLUME_LIMITS.total) return { allowed: false, reason: "total" };
+	return { allowed: true };
+}
+
+async function volumeCounts(db, filter) {
+	const postRow = await db
+		.prepare(`SELECT COUNT(*) AS n FROM comments WHERE ${filter.clause} AND status IN ('approved', 'pending')`)
+		.bind(filter.value)
+		.first();
+	const totalRow = await db.prepare("SELECT COUNT(*) AS n FROM comments").first();
+	return { postCount: Number(postRow?.n ?? 0), totalCount: Number(totalRow?.n ?? 0) };
 }
 
 export const DELETED_PLACEHOLDER = "该评论已被删除";
@@ -135,15 +154,29 @@ export async function handleList(request, env, ctx) {
 	try {
 		await ensureCommentsSchema(env);
 
-		let sql = `SELECT * FROM comments WHERE ${filter.clause} AND status IN ('approved', 'deleted') AND depth = 0`;
+		const baseWhere = `${filter.clause} AND status IN ('approved', 'deleted') AND depth = 0`;
+		const direction = sort === "old" ? "ASC" : "DESC";
+
+		// 置顶的顶级评论只在第一页一次性取出（量很小），把置顶排除在游标之外，
+		// 否则「pin 优先」和「按时间游标」会互相打架，翻页时同一条会出现两次。
+		let pinnedRows = [];
+		if (!cursor) {
+			const pinnedResult = await env.DB.prepare(
+				`SELECT * FROM comments WHERE ${baseWhere} AND pinned = 1 ORDER BY created_at ${direction}, id ${direction}`,
+			)
+				.bind(filter.value)
+				.all();
+			pinnedRows = pinnedResult.results ?? [];
+		}
+
+		let sql = `SELECT * FROM comments WHERE ${baseWhere} AND pinned = 0`;
 		const params = [filter.value];
 		if (cursor) {
 			const comparison = sort === "old" ? ">" : "<";
 			sql += ` AND (created_at ${comparison} ? OR (created_at = ? AND id ${comparison} ?))`;
 			params.push(cursor.createdAt, cursor.createdAt, cursor.id);
 		}
-		const direction = sort === "old" ? "ASC" : "DESC";
-		sql += ` ORDER BY pinned DESC, created_at ${direction}, id ${direction} LIMIT ?`;
+		sql += ` ORDER BY created_at ${direction}, id ${direction} LIMIT ?`;
 		params.push(limit + 1);
 
 		const { results: rootRows = [] } = await env.DB.prepare(sql)
@@ -151,7 +184,8 @@ export async function handleList(request, env, ctx) {
 			.all();
 
 		const hasMore = rootRows.length > limit;
-		const roots = hasMore ? rootRows.slice(0, limit) : rootRows;
+		const pageRoots = hasMore ? rootRows.slice(0, limit) : rootRows;
+		const roots = [...pinnedRows, ...pageRoots];
 
 		let replies = [];
 		if (roots.length > 0) {
@@ -164,7 +198,7 @@ export async function handleList(request, env, ctx) {
 			replies = replyResult.results ?? [];
 		}
 
-		const last = roots[roots.length - 1];
+		const last = pageRoots[pageRoots.length - 1];
 		return jsonResponse({
 			items: buildTree([...roots, ...replies], { sort }),
 			nextCursor: hasMore && last ? `${last.created_at}|${last.id}` : null,
@@ -437,44 +471,74 @@ export async function handleCreate(request, env, ctx) {
 			return jsonResponse({ item: toPublicComment(duplicate), status: duplicate.status }, 200);
 		}
 
-		// 2) 机器人：给个 200，但落 spam 留样本
-		const bot = detectBot({ honey: body?.honey, elapsed: body?.elapsed });
-		const challenge = bot.bot
-			? { enabled: false, ok: true }
-			: await verifyTurnstile(env, body?.turnstileToken, request.headers.get("cf-connecting-ip") ?? "");
-		if (bot.bot || !challenge.ok) {
-			const row = await buildCommentRow({
-				slug: slug || "/",
-				postId: postId || slug || "/",
-				name,
-				content,
-				identityHash: identity,
-				ipHash,
-				clientId,
-				parentId,
-				website,
-				emailHash: email ? await sha256Hex(`${salt}mail:${email.toLowerCase()}`) : null,
-				status: "spam",
-			});
-			await env.DB.prepare(INSERT_SQL)
-				.bind(...insertValues(row))
-				.run()
-				.catch((error) => console.warn("机器人样本没写进去", error));
-			return jsonResponse({ ok: true });
-		}
-
-		// 3) 限流
+		// 2) 机器人：给个 200，但落 spam 留样本。
+		//    机器人也要过限流，否则一行 honey 就能无上限写库（D1 免费额度会被打爆）。
 		const buckets = [
 			{ scope: "ip", value: ipHash },
 			{ scope: "id", value: identity },
 			{ scope: "site", value: "" },
 		];
+		const recordRate = () => {
+			const tasks = (async () => {
+				try {
+					await rateRecord(env.DB, buckets, now);
+					await ratePrune(env.DB, now);
+				} catch (error) {
+					console.warn("限流计数写入失败", error);
+				}
+			})();
+			if (ctx?.waitUntil) ctx.waitUntil(tasks);
+			return tasks;
+		};
+
+		const bot = detectBot({ honey: body?.honey, elapsed: body?.elapsed });
+		const challenge = bot.bot
+			? { enabled: false, ok: true }
+			: await verifyTurnstile(env, body?.turnstileToken, request.headers.get("cf-connecting-ip") ?? "");
+		if (bot.bot || !challenge.ok) {
+			const botVerdict = await rateCheck(env.DB, buckets, now);
+			if (botVerdict.allowed) {
+				const row = await buildCommentRow({
+					slug: slug || "/",
+					postId: postId || "",
+					name,
+					content,
+					identityHash: identity,
+					ipHash,
+					clientId,
+					parentId,
+					website,
+					emailHash: email ? await sha256Hex(`${salt}mail:${email.toLowerCase()}`) : null,
+					status: "spam",
+				});
+				await env.DB.prepare(INSERT_SQL)
+					.bind(...insertValues(row))
+					.run()
+					.catch((error) => console.warn("机器人样本没写进去", error));
+				await recordRate();
+			}
+			return jsonResponse({ ok: true });
+		}
+
+		// 3) 限流
 		const verdict = await rateCheck(env.DB, buckets, now);
 		if (!verdict.allowed) {
 			return jsonResponse(
 				{ error: "发得有点频繁，歇一会儿再试", retryAfter: verdict.retryAfter },
 				429,
 				{ "retry-after": String(verdict.retryAfter) },
+			);
+		}
+
+		// 3.5) 体量闸门：单篇 / 全表都有上限，超了就拒，保护 D1 免费额度
+		const volume = await volumeCounts(env.DB, postFilter(postId, slug || "/"));
+		const volumeResult = volumeVerdict(volume);
+		if (!volumeResult.allowed) {
+			console.warn("[comments] volume gate", volumeResult.reason, volume);
+			return jsonResponse(
+				{ error: "这个地方的评论已经很多了，先歇一歇", retryAfter: 3600 },
+				429,
+				{ "retry-after": "3600" },
 			);
 		}
 
@@ -490,13 +554,15 @@ export async function handleCreate(request, env, ctx) {
 			rootId = parent.depth === 0 ? parent.id : (parent.root_id ?? parent.id);
 		}
 
-		// 5) 分类
+		// 5) 分类（博主自己的评论免审、带博主标记）
+		const admin = await isAdmin(request, env);
 		const mode = await getCommentMode(env.DB);
 		const row = await buildCommentRow({
 			slug: slug || "/",
-			postId: postId || slug || "/",
+			postId: postId || "",
 			name,
 			content,
+			isAdmin: admin,
 			identityHash: identity,
 			ipHash,
 			clientId,
@@ -506,7 +572,7 @@ export async function handleCreate(request, env, ctx) {
 			emailHash: email ? await sha256Hex(`${salt}mail:${email.toLowerCase()}`) : null,
 		});
 		const verdictClass = classifyComment({
-			isAdmin: false,
+			isAdmin: admin,
 			mode,
 			linkCount: countLinks(content),
 			keywordHit: await keywordHit(env.DB, content),
@@ -527,16 +593,7 @@ export async function handleCreate(request, env, ctx) {
 		}
 
 		// 7) 计数与清理（不影响本次响应）
-		const tasks = (async () => {
-			try {
-				await rateRecord(env.DB, buckets, now);
-				await ratePrune(env.DB, now);
-			} catch (error) {
-				console.warn("限流计数写入失败", error);
-			}
-		})();
-		if (ctx?.waitUntil) ctx.waitUntil(tasks);
-		else await tasks;
+		await recordRate();
 
 		const cookie = identityCookie(
 			await signIdentity({ uid, name, emailHash: row.email_hash, website }, cookieSecret),
@@ -548,5 +605,6 @@ export async function handleCreate(request, env, ctx) {
 		return jsonResponse({ error: "没发出去，稍后再试", retryable: true }, 500);
 	}
 }
+
 
 

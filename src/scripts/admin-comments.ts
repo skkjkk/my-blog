@@ -23,7 +23,7 @@ type AdminComment = {
 type AdminListResponse = {
 	items?: AdminComment[];
 	nextCursor?: string | null;
-	stats?: { pending: number; approved: number; reported: number; total: number };
+	stats?: { pending: number; approved: number; reported: number; today: number; total: number };
 	mode?: string;
 	error?: string;
 };
@@ -64,7 +64,7 @@ function renderKpis(stats: AdminListResponse["stats"]) {
 	box.replaceChildren();
 	const data = [
 		{ label: "待审", value: stats?.pending ?? 0, tone: "warn" },
-		{ label: "已通过", value: stats?.approved ?? 0, tone: "" },
+		{ label: "今日新增", value: stats?.today ?? 0, tone: "" },
 		{ label: "被举报", value: stats?.reported ?? 0, tone: "warn" },
 		{ label: "总计", value: stats?.total ?? 0, tone: "" },
 	];
@@ -103,6 +103,14 @@ function renderRow(comment: AdminComment, titles: Map<string, string>): HTMLElem
 	row.dataset.id = String(comment.id);
 
 	const head = el("div", "cmt-row-head");
+	const check = el("input", "cmt-check") as HTMLInputElement;
+	check.type = "checkbox";
+	check.dataset.cmtCheck = "1";
+	check.addEventListener("change", () => {
+		row.classList.toggle("is-selected", check.checked);
+		updateSelectedCount();
+	});
+	head.append(check);
 	head.append(el("b", "", comment.name));
 	if (comment.isAdmin) head.append(el("i", "cmt-tag", "博主"));
 	if (comment.pinned) head.append(el("i", "cmt-tag", "置顶"));
@@ -197,6 +205,54 @@ async function loadTitles(): Promise<Map<string, string>> {
 	}
 }
 
+function selectedIds(): number[] {
+	return Array.from(document.querySelectorAll<HTMLInputElement>("[data-cmt-check]:checked"))
+		.map((node) => Number(node.closest<HTMLElement>(".cmt-row")?.dataset.id ?? 0))
+		.filter((id) => Number.isInteger(id) && id > 0);
+}
+
+function updateSelectedCount() {
+	const note = $("#cmt-selected");
+	if (note) note.textContent = `已选 ${selectedIds().length} 条`;
+}
+
+/** 批量操作一条一条发（D1 并发写同一张表容易冲突） */
+async function runBatch(action: string) {
+	const ids = selectedIds();
+	if (ids.length === 0) {
+		setNote("先勾选几条评论", true);
+		return;
+	}
+	if (action === "delete" && !window.confirm(`确定删除选中的 ${ids.length} 条评论吗？`)) return;
+	let failed = 0;
+	for (const id of ids) {
+		try {
+			await api("/api/admin/comments/action", { method: "POST", body: JSON.stringify({ id, action }) });
+		} catch {
+			failed += 1;
+		}
+	}
+	setNote(failed > 0 ? `${ids.length - failed} 条成功，${failed} 条失败` : `已处理 ${ids.length} 条`, failed > 0);
+	await loadComments(true);
+}
+
+async function fillPostFilter(): Promise<void> {
+	const select = $("#cmt-post") as HTMLSelectElement | null;
+	if (!select || select.dataset.filled === "1") return;
+	try {
+		const rows = (await (await fetch("/post-index.json")).json()) as Array<{ slug?: string; url?: string; title?: string; id?: string }>;
+		for (const row of rows) {
+			if (!row.id || !row.title) continue;
+			const option = el("option", "", row.title);
+			option.value = row.id;
+			select.append(option);
+		}
+		select.dataset.filled = "1";
+	} catch {
+		// 拿不到文章列表就不提供按文章筛选，不影响其它功能
+	}
+}
+
 export async function loadComments(reset = false): Promise<void> {
 	if (loading) return;
 	loading = true;
@@ -205,8 +261,10 @@ export async function loadComments(reset = false): Promise<void> {
 		if (reset) cursor = null;
 		const status = ($("#cmt-status") as HTMLSelectElement | null)?.value ?? "pending";
 		const keyword = ($("#cmt-search") as HTMLInputElement | null)?.value.trim() ?? "";
+		const postId = ($("#cmt-post") as HTMLSelectElement | null)?.value ?? "";
 		const params = new URLSearchParams({ status, limit: "20" });
 		if (keyword) params.set("q", keyword);
+		if (postId) params.set("postId", postId);
 		if (cursor && !reset) params.set("cursor", cursor);
 
 		const titles = await loadTitles();
@@ -264,6 +322,18 @@ export function initAdminComments(): void {
 	initialised = true;
 
 	$("#cmt-refresh")?.addEventListener("click", () => void loadComments(true));
+	$("#cmt-post")?.addEventListener("change", () => void loadComments(true));
+
+	$("#cmt-select-all")?.addEventListener("change", (event) => {
+		const checked = (event.target as HTMLInputElement).checked;
+		for (const box of document.querySelectorAll<HTMLInputElement>("[data-cmt-check]")) {
+			box.checked = checked;
+			box.closest<HTMLElement>(".cmt-row")?.classList.toggle("is-selected", checked);
+		}
+		updateSelectedCount();
+	});
+	$("#cmt-batch-approve")?.addEventListener("click", () => void runBatch("approve"));
+	$("#cmt-batch-delete")?.addEventListener("click", () => void runBatch("delete"));
 	$("#cmt-status")?.addEventListener("change", () => void loadComments(true));
 	$("#cmt-search")?.addEventListener("input", () => {
 		window.clearTimeout((window as unknown as { __cmtTimer?: number }).__cmtTimer);
@@ -301,13 +371,16 @@ export function initAdminComments(): void {
 	});
 
 	window.addEventListener("admin:console", () => {
+		void fillPostFilter();
 		void loadComments(true);
 		void loadKeywords();
 	});
 
 	const consolePanel = $("#console");
 	if (consolePanel && !consolePanel.hidden) {
+		void fillPostFilter();
 		void loadComments(true);
 		void loadKeywords();
 	}
 }
+

@@ -195,12 +195,22 @@ import Layout from "@layouts/Layout.astro";
 							<option value="deleted">已删除</option>
 							<option value="all">全部</option>
 						</select>
+						<select id="cmt-post" aria-label="按文章筛选">
+							<option value="">全部文章</option>
+						</select>
 						<input id="cmt-search" type="search" placeholder="搜昵称或内容" />
 						<div class="seg" id="cmt-mode" role="group" aria-label="审核模式">
 							<button type="button" data-mode="auto" class="is-active">先发后审</button>
 							<button type="button" data-mode="hold">全部待审</button>
 						</div>
 						<button type="button" class="btn" id="cmt-refresh">刷新</button>
+					</div>
+
+					<div class="cmt-batch">
+						<label><input type="checkbox" id="cmt-select-all" /> 全选本页</label>
+						<button type="button" class="btn" id="cmt-batch-approve">批量通过</button>
+						<button type="button" class="btn" id="cmt-batch-delete">批量删除</button>
+						<span class="card-note" id="cmt-selected">已选 0 条</span>
 					</div>
 
 					<div class="cmt-list" id="cmt-list"></div>
@@ -364,6 +374,26 @@ import Layout from "@layouts/Layout.astro";
 		color: var(--ink-1);
 		font-size: 0.85rem;
 		resize: vertical;
+	}
+	.cmt-batch {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.6rem;
+		margin-bottom: 0.6rem;
+		font-size: 0.8rem;
+		color: var(--ink-2);
+	}
+	.cmt-batch label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+	}
+	.cmt-row.is-selected {
+		border-color: var(--c1);
+	}
+	.cmt-check {
+		margin-right: 0.4rem;
 	}
 	.cmt-keywords-box {
 		margin-top: 1rem;
@@ -2100,4 +2130,5 @@ import Layout from "@layouts/Layout.astro";
 		await load();
 	})();
 </script>
+
 

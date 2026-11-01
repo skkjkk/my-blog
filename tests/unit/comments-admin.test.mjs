@@ -138,3 +138,18 @@ test("彻底删除会把行删掉", async () => {
 	const row = await env.DB.prepare("SELECT id FROM comments WHERE id = ?").bind(id).first();
 	assert.equal(row, null);
 });
+
+test("后台统计包含今日新增", async () => {
+	const env = createEnv();
+	const { cookie } = await login(env);
+	await ensureCommentsSchema(env);
+	await env.DB.prepare(
+		`INSERT INTO comments (post_id, slug, parent_id, root_id, depth, name, content, content_hash, status, identity_hash, client_id, created_at)
+		 VALUES ('posts/demo.md', '/posts/demo/', NULL, NULL, 0, '今天的', '刚刚发的', 'h1', 'approved', 'id', 'c-today', ?)`,
+	)
+		.bind(new Date().toISOString())
+		.run();
+	const body = await (await call("/api/admin/comments?status=all", { headers: { cookie } }, env)).json();
+	assert.equal(body.stats.today, 1);
+	assert.equal(body.stats.total, 1);
+});

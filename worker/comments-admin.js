@@ -103,14 +103,24 @@ export async function handleAdminList(request, env) {
 		const rows = hasMore ? results.slice(0, limit) : results;
 		const last = rows[rows.length - 1];
 
+		// 「今日」按北京时间算，和后台其它统计口径一致
+		const nowMs = Date.now();
+		const offsetMs = 8 * 3600 * 1000;
+		const local = new Date(nowMs + offsetMs);
+		const dayStartMs = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - offsetMs;
+		const todayIso = new Date(dayStartMs).toISOString();
+
 		const stats = await env.DB.prepare(
 			`SELECT
          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
          SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved,
          SUM(CASE WHEN report_count > 0 THEN 1 ELSE 0 END) AS reported,
+         SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS today,
          COUNT(*) AS total
        FROM comments`,
-		).first();
+		)
+			.bind(todayIso)
+			.first();
 
 		return jsonResponse({
 			items: rows.map(toAdminComment),
@@ -119,6 +129,7 @@ export async function handleAdminList(request, env) {
 				pending: Number(stats?.pending ?? 0),
 				approved: Number(stats?.approved ?? 0),
 				reported: Number(stats?.reported ?? 0),
+				today: Number(stats?.today ?? 0),
 				total: Number(stats?.total ?? 0),
 			},
 			mode: await getCommentMode(env.DB),
@@ -279,3 +290,4 @@ export async function handleAdminKeywords(request, env) {
 		return jsonResponse({ error: "操作没成功，稍后重试" }, 500);
 	}
 }
+
