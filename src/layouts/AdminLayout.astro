@@ -103,6 +103,9 @@ const isActive = (href: string) => {
 
 <script>
 	import { initAdminDash } from "../scripts/admin-dash";
+	import { initAiBoard } from "../scripts/admin/pages/ai";
 
-	initAdminDash();
+	// 新页面用卡片契约渲染，老页面继续用原来的整体接口（迁移期共存）
+	if (document.getElementById("ai-board")) initAiBoard();
+	else initAdminDash();
 </script>

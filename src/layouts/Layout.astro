@@ -824,7 +824,9 @@ if (window.swup) {
 
 <script>
 // ---------------- 访问统计上报 ----------------
-// 只上报路径，不发 IP、不发 Cookie 内容；后台页面不上报。
+// 只上报路径 + 两个随机 id（前端本地生成，服务端再哈希），不发 IP、不发 Cookie 内容；后台页面不上报。
+import { visitorIds } from "../scripts/analytics";
+
 let lastHitPath = "";
 let lastHitAt = 0;
 
@@ -838,7 +840,7 @@ function reportHit() {
 		lastHitPath = path;
 		lastHitAt = now;
 
-		const body = JSON.stringify({ path });
+		const body = JSON.stringify({ path, ...visitorIds() });
 		if (navigator.sendBeacon) {
 			navigator.sendBeacon("/api/hit", new Blob([body], { type: "application/json" }));
 		} else {

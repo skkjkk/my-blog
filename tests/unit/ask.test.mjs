@@ -318,7 +318,8 @@ test("POST /api/ask 真跑一轮工具调用再流式出答案", async () => {
 		const done = events.find((event) => event.type === "done");
 		assert.ok(done);
 		assert.equal(done.rounds, 2);
-		assert.equal(done.tokens, 260);
+		// 两轮各计一次费，累加才是真实成本（以前只留最后一轮的值）
+		assert.equal(done.tokens, 380);
 
 		const answer = events
 			.filter((event) => event.type === "text")

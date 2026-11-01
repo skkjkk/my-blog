@@ -26,6 +26,7 @@ import {
 	TOOLS,
 	toolLabel,
 } from "./lib/agent.js";
+import { recordEvent } from "./lib/events.js";
 import {
 	findNote,
 	loadIndex,
@@ -275,6 +276,7 @@ export async function handleAsk(request, env, ctx) {
 	};
 	const history = Array.isArray(payload?.history) ? payload.history : [];
 	const requestUrl = request.url;
+	const visitor = { vid: payload?.vid, sid: payload?.sid };
 
 	const apiKey = String(env?.AI_API_KEY ?? "").trim();
 	if (!apiKey)
@@ -298,7 +300,24 @@ export async function handleAsk(request, env, ctx) {
 	};
 
 	const startedAt = Date.now();
-	const stat = { model: "", tokens: 0, ok: 0, hits: 0, paths: [] };
+	const stat = {
+		model: "",
+		tokens: 0,
+		ok: 0,
+		hits: 0,
+		paths: [],
+		ttft: 0,
+		err: "",
+		rounds: 0,
+		tools: [],
+	};
+	const notePath = (() => {
+		try {
+			return note.url ? new URL(note.url, "https://blog.local").pathname : "";
+		} catch {
+			return "";
+		}
+	})();
 
 	const stream = new ReadableStream({
 		async start(controller) {
@@ -309,6 +328,13 @@ export async function handleAsk(request, env, ctx) {
 				} catch {
 					closed = true;
 				}
+			};
+
+			// 首字延迟：第一次吐出正文的时间点。比总耗时更接近「卡不卡」的体感
+			const track = (event) => {
+				if (!stat.ttft && event?.type === "text")
+					stat.ttft = Date.now() - startedAt;
+				send(event);
 			};
 
 			const deps = { env, note, requestUrl, pushSource };
@@ -388,10 +414,11 @@ export async function handleAsk(request, env, ctx) {
 						messages,
 						signal: abort.signal,
 						allowTools,
-						onDelta: send,
+						onDelta: track,
 					});
 					stat.model = model || stat.model;
-					if (tokens) stat.tokens = tokens;
+					// 每一轮都是一次独立计费请求，所以累加才是真实成本
+					if (tokens) stat.tokens += tokens;
 
 					if (turn.toolCalls.length === 0) {
 						messages.push({ role: "assistant", content: turn.content });
@@ -438,6 +465,7 @@ export async function handleAsk(request, env, ctx) {
 							ms: Date.now() - toolStarted,
 							summary: summarizeTool(name, toolResult.payload),
 						});
+						if (name) stat.tools.push(name);
 
 						messages.push({
 							role: "tool",
@@ -458,6 +486,8 @@ export async function handleAsk(request, env, ctx) {
 
 				if (!answered) throw new Error("模型没有给出正文回答，再问一次试试");
 
+				stat.rounds = rounds;
+
 				if (sources.length > 0)
 					send({ type: "sources", items: sources.slice(0, 6) });
 				stat.ok = 1;
@@ -477,6 +507,14 @@ export async function handleAsk(request, env, ctx) {
 					error?.name === "AbortError"
 						? "回答超时了，问短一点或者再试一次"
 						: String(error?.message ?? "出了点问题");
+				stat.err =
+					error?.name === "AbortError"
+						? "超时"
+						: /没有给出正文回答/.test(message)
+							? "空回答"
+							: /AI 服务暂时不可用/.test(message)
+								? "上游异常"
+								: message.slice(0, 40);
 				send({ type: "error", message });
 			} finally {
 				clearTimeout(timer);
@@ -510,6 +548,23 @@ export async function handleAsk(request, env, ctx) {
 									"INSERT INTO ai_hits (ts, day, hits, paths) VALUES (?, ?, ?, ?)",
 								).bind(now, day, stat.hits, stat.paths.join(",")),
 							]);
+							// 数据台 v2 的事件流：一次提问一行，漏斗 / 延迟 / 模型对比都靠它
+							await recordEvent(env, {
+								type: "ask",
+								path: notePath,
+								vid: visitor.vid,
+								sid: visitor.sid,
+								ms: Date.now() - startedAt,
+								ttft: stat.ttft,
+								tokens: stat.tokens,
+								ok: stat.ok === 1,
+								err: stat.err,
+								n: history.length,
+								hits: stat.hits,
+								tag: stat.model || DEFAULT_MODEL,
+								text: question,
+								meta: { rounds: stat.rounds, tools: stat.tools },
+							});
 						})().catch((error) => console.warn("AI 记录写入失败", error)),
 					);
 				}

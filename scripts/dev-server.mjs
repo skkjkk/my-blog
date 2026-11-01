@@ -10,6 +10,7 @@
  *
  * 用法：node scripts/dev-server.mjs [port]
  */
+import { existsSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
@@ -46,7 +47,9 @@ async function resolveAsset(pathname) {
 	// 防目录穿越
 	if (!normalize(target).startsWith(normalize(DIST))) return null;
 
-	const candidates = clean.endsWith("/") ? [join(target, "index.html")] : [target, join(target, "index.html")];
+	const candidates = clean.endsWith("/")
+		? [join(target, "index.html")]
+		: [target, join(target, "index.html")];
 
 	for (const candidate of candidates) {
 		try {
@@ -72,7 +75,10 @@ async function loadDevVars() {
 			const hit = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
 			if (!hit) continue;
 			let value = hit[2].trim();
-			if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+			if (
+				(value.startsWith('"') && value.endsWith('"')) ||
+				(value.startsWith("'") && value.endsWith("'"))
+			) {
 				value = value.slice(1, -1);
 			}
 			vars[hit[1]] = value;
@@ -86,12 +92,19 @@ async function loadDevVars() {
 const devVars = await loadDevVars();
 
 const env = createEnv({
-	ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ?? devVars.ADMIN_PASSWORD ?? "dev-pass",
+	ADMIN_PASSWORD:
+		process.env.ADMIN_PASSWORD ?? devVars.ADMIN_PASSWORD ?? "dev-pass",
 	IP_SALT: process.env.IP_SALT ?? devVars.IP_SALT ?? "dev-ip-salt",
-	COMMENT_COOKIE_SECRET: process.env.COMMENT_COOKIE_SECRET ?? devVars.COMMENT_COOKIE_SECRET ?? "dev-cookie-secret",
+	COMMENT_COOKIE_SECRET:
+		process.env.COMMENT_COOKIE_SECRET ??
+		devVars.COMMENT_COOKIE_SECRET ??
+		"dev-cookie-secret",
 	// AI 问答：和线上保持一致，缺了就直说，别再静默 502
 	AI_API_KEY: process.env.AI_API_KEY ?? devVars.AI_API_KEY ?? "",
-	AI_BASE_URL: process.env.AI_BASE_URL ?? devVars.AI_BASE_URL ?? "https://api.hcnsec.cn/v1/chat/completions",
+	AI_BASE_URL:
+		process.env.AI_BASE_URL ??
+		devVars.AI_BASE_URL ??
+		"https://api.hcnsec.cn/v1/chat/completions",
 	AI_MODEL: process.env.AI_MODEL ?? devVars.AI_MODEL ?? "auto",
 	ASSETS: {
 		fetch: async (request) => {
@@ -102,13 +115,23 @@ const env = createEnv({
 			const body = await readFile(file);
 			return new Response(body, {
 				status: 200,
-				headers: { "content-type": MIME[extname(file)] ?? "application/octet-stream" },
+				headers: {
+					"content-type": MIME[extname(file)] ?? "application/octet-stream",
+				},
 			});
 		},
 	},
 });
 
 await ensureCommentsSchema(env);
+
+// 开发用播种：有这文件就往内存库里灌一批假事件，方便看空看板长什么样。
+// 生产构建不会碰它；.tmp/ 已在 .gitignore 里。
+const seedFile = process.env.DEV_SEED ?? join(".tmp", "seed-events.sql");
+if (existsSync(seedFile)) {
+	env.DB.exec(await readFile(seedFile, "utf8"));
+	console.log(`已播种测试数据：${seedFile}`);
+}
 
 const server = createServer(async (request, response) => {
 	const chunks = [];
@@ -126,7 +149,8 @@ const server = createServer(async (request, response) => {
 	const workerRequest = new Request(requestUrl, {
 		method: request.method ?? "GET",
 		headers,
-		body: request.method === "GET" || request.method === "HEAD" ? undefined : body,
+		body:
+			request.method === "GET" || request.method === "HEAD" ? undefined : body,
 	});
 
 	try {
@@ -164,5 +188,9 @@ server.listen(port, "127.0.0.1", () => {
 	console.log(`本地全栈服务：http://127.0.0.1:${port}`);
 	console.log(`  后台密码：${env.ADMIN_PASSWORD}`);
 	console.log(`  MCP 入口：http://127.0.0.1:${port}/mcp`);
-	console.log(env.AI_API_KEY ? `  AI 问答：${env.AI_MODEL} @ ${env.AI_BASE_URL}` : "  AI 问答：未配置（.dev.vars 里加 AI_API_KEY 才有回答）");
+	console.log(
+		env.AI_API_KEY
+			? `  AI 问答：${env.AI_MODEL} @ ${env.AI_BASE_URL}`
+			: "  AI 问答：未配置（.dev.vars 里加 AI_API_KEY 才有回答）",
+	);
 });

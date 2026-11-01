@@ -4,6 +4,7 @@ import { i18n } from "@i18n/translation";
 import Icon from "@iconify/svelte";
 import { url } from "@utils/url-utils.ts";
 import { onMount } from "svelte";
+import { visitorIds } from "../scripts/analytics";
 import type { SearchResult } from "@/global";
 
 let keywordDesktop = "";
@@ -25,7 +26,11 @@ function logSearchKeyword(keyword: string, count: number) {
 	searchLogTimer = setTimeout(() => {
 		lastLoggedKeyword = value;
 		try {
-			const body = JSON.stringify({ keyword: value, results: count });
+			const body = JSON.stringify({
+				keyword: value,
+				results: count,
+				...visitorIds(),
+			});
 			if (navigator.sendBeacon) {
 				navigator.sendBeacon("/api/search-log", new Blob([body], { type: "application/json" }));
 			} else {

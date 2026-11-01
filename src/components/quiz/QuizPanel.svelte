@@ -25,6 +25,7 @@ import {
 } from "../../utils/quiz-store";
 import { todayKey } from "../../utils/quiz-utils";
 import { url } from "../../utils/url-utils";
+import { visitorIds } from "../../scripts/analytics";
 
 type Item = {
 	slug: string;
@@ -224,7 +225,7 @@ function grade(value: Grade) {
 /** 上报一次评分：只发聚合计数，不带任何身份信息 */
 function reportGrade(slug: string, value: Grade) {
 	try {
-		const body = JSON.stringify({ slug, grade: value });
+		const body = JSON.stringify({ slug, grade: value, ...visitorIds() });
 		if (navigator.sendBeacon) {
 			navigator.sendBeacon(url("/api/quiz/grade"), new Blob([body], { type: "application/json" }));
 			return;

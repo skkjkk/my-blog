@@ -8,6 +8,8 @@
  * 这里只负责：把每类事件画成对应 UI、保持自动滚动、能中途停止。
  */
 
+import { track, visitorIds } from "./analytics";
+
 type NoteRef = { slug: string; title: string; url: string };
 type HistoryTurn = { role: "user" | "assistant"; content: string };
 
@@ -160,11 +162,15 @@ export function initAskPanel(): void {
 	if (!root || !panel || !log || !form || !input) return;
 
 	const setOpen = (open: boolean) => {
+		const wasOpen = root.dataset.open === "true";
 		root.dataset.open = open ? "true" : "false";
 		panel.setAttribute("aria-hidden", open ? "false" : "true");
 		$("#ask-fab")?.setAttribute("aria-expanded", open ? "true" : "false");
 		if (scrim) scrim.hidden = !open || window.innerWidth > 640;
 		if (open) {
+			// 面板打开是漏斗的第二级：只在真正从关到开时记一次
+			if (!wasOpen)
+				track("panel_open", { path: note?.url || window.location.pathname });
 			window.setTimeout(() => {
 				input.focus();
 				scrollToBottom(log);
@@ -495,7 +501,12 @@ export function initAskPanel(): void {
 			const response = await fetch("/api/ask", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ question, note, history: history.slice(0, -1) }),
+				body: JSON.stringify({
+					question,
+					note,
+					history: history.slice(0, -1),
+					...visitorIds(),
+				}),
 				signal: controller.signal,
 			});
 

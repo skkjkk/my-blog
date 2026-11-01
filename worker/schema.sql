@@ -51,6 +51,35 @@ CREATE TABLE IF NOT EXISTS search_log (
 );
 CREATE INDEX IF NOT EXISTS idx_search_day ON search_log (day);
 
+-- ==================== 数据台 v2：全站事件 ====================
+-- 一条事件一行，聚合交给 worker/lib/stats.js。
+-- 隐私：vid / sid 都是前端随机生成、服务端再用 IP_SALT 哈希过的不可逆值，不存 IP、不存 UA。
+CREATE TABLE IF NOT EXISTS events (
+  id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts     TEXT NOT NULL,
+  day    TEXT NOT NULL,
+  hour   INTEGER NOT NULL DEFAULT 0,
+  dow    INTEGER NOT NULL DEFAULT 0,   -- 0=周一 … 6=周日
+  vid    TEXT DEFAULT '',              -- 访客（哈希）
+  sid    TEXT DEFAULT '',              -- 会话（哈希）
+  type   TEXT NOT NULL,                -- page_view / panel_open / ask / search / quiz / comment
+  path   TEXT DEFAULT '',
+  ms     INTEGER DEFAULT 0,
+  ttft   INTEGER DEFAULT 0,            -- 首字延迟
+  tokens INTEGER DEFAULT 0,
+  ok     INTEGER NOT NULL DEFAULT 1,
+  err    TEXT DEFAULT '',
+  n      INTEGER DEFAULT 0,            -- ask: 追问深度（历史轮数）；search: 结果数
+  hits   INTEGER DEFAULT 0,            -- ask: 检索命中段数
+  tag    TEXT DEFAULT '',              -- ask: 模型名
+  text   TEXT DEFAULT '',              -- ask: 问题原文；search: 关键词
+  meta   TEXT DEFAULT ''               -- 附加 JSON（轮次、工具…）
+);
+CREATE INDEX IF NOT EXISTS idx_events_type_day ON events (type, day);
+CREATE INDEX IF NOT EXISTS idx_events_day ON events (day);
+CREATE INDEX IF NOT EXISTS idx_events_vid ON events (vid, day);
+CREATE INDEX IF NOT EXISTS idx_events_sid ON events (sid);
+
 -- 刷题评分聚合（哪些题总记不住 = 哪些答案该重写）
 CREATE TABLE IF NOT EXISTS quiz_grade (
   slug TEXT NOT NULL,

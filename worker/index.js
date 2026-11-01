@@ -17,6 +17,7 @@
 
 // ---------------- 大模型 ----------------
 
+import { handleAdminStats } from "./admin-stats.js";
 import { handleAsk } from "./ask.js";
 import { handleCreate, handleList, handleReport } from "./comments.js";
 import {
@@ -27,6 +28,7 @@ import {
 	handleAdminSettings,
 } from "./comments-admin.js";
 import { adminCookieValue, isAdmin, safeEqual } from "./lib/admin.js";
+import { EVENTS_DDL, recordEvent } from "./lib/events.js";
 import { describeMcp, handleMcp, mcpJson } from "./mcp.js";
 
 const DEFAULT_BASE_URL = "https://api.hcnsec.cn/v1/chat/completions";
@@ -44,9 +46,13 @@ const SYSTEM = `你是「Wkb」这个个人博客的 AI 助手，帮访客快速
 
 async function callModel(env, messages, maxTokens) {
 	const apiKey = (env?.AI_API_KEY ?? "").trim();
-	if (!apiKey) throw new Error("AI 还没接上（服务端缺少 AI_API_KEY），跟博主说一声");
+	if (!apiKey)
+		throw new Error("AI 还没接上（服务端缺少 AI_API_KEY），跟博主说一声");
 
-	const url = ((env?.AI_BASE_URL ?? DEFAULT_BASE_URL) || DEFAULT_BASE_URL).trim();
+	const url = (
+		(env?.AI_BASE_URL ?? DEFAULT_BASE_URL) ||
+		DEFAULT_BASE_URL
+	).trim();
 	const model = ((env?.AI_MODEL ?? DEFAULT_MODEL) || DEFAULT_MODEL).trim();
 
 	const controller = new AbortController();
@@ -54,8 +60,16 @@ async function callModel(env, messages, maxTokens) {
 	try {
 		const upstream = await fetch(url, {
 			method: "POST",
-			headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-			body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.3 }),
+			headers: {
+				"content-type": "application/json",
+				authorization: `Bearer ${apiKey}`,
+			},
+			body: JSON.stringify({
+				model,
+				messages,
+				max_tokens: maxTokens,
+				temperature: 0.3,
+			}),
 			signal: controller.signal,
 		});
 
@@ -68,7 +82,11 @@ async function callModel(env, messages, maxTokens) {
 		const data = await upstream.json();
 		const answer = data?.choices?.[0]?.message?.content?.trim();
 		if (!answer) throw new Error("AI 没有返回内容，再问一次试试");
-		return { answer, model: data?.model ?? model, tokens: data?.usage?.total_tokens ?? null };
+		return {
+			answer,
+			model: data?.model ?? model,
+			tokens: data?.usage?.total_tokens ?? null,
+		};
 	} catch (error) {
 		if (error?.name === "AbortError") throw new Error("AI 响应超时，稍后再试");
 		throw error;
@@ -89,28 +107,30 @@ function ensureSchema(env) {
 	if (cached) return cached;
 
 	const promise = env.DB.batch([
-			// 基础表也一起兜住：新环境忘了跑 schema.sql 时统计照样能落库
-			env.DB.prepare(
-				"CREATE TABLE IF NOT EXISTS views (day TEXT NOT NULL, path TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, path))",
-			),
-			env.DB.prepare(
-				"CREATE TABLE IF NOT EXISTS ai_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, question TEXT NOT NULL, model TEXT, ms INTEGER, tokens INTEGER, ok INTEGER NOT NULL DEFAULT 1)",
-			),
-			env.DB.prepare(
-				"CREATE TABLE IF NOT EXISTS views_hourly (day TEXT NOT NULL, hour INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, hour))",
-			),
-			env.DB.prepare(
-				"CREATE TABLE IF NOT EXISTS ai_hits (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, hits INTEGER NOT NULL DEFAULT 0, paths TEXT DEFAULT '')",
-			),
-			env.DB.prepare(
-				"CREATE TABLE IF NOT EXISTS search_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, keyword TEXT NOT NULL, results INTEGER DEFAULT 0)",
-			),
-			env.DB.prepare(
-				"CREATE TABLE IF NOT EXISTS quiz_grade (slug TEXT NOT NULL, grade INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, updated TEXT NOT NULL, PRIMARY KEY (slug, grade))",
-			),
-			env.DB.prepare(
-				"CREATE TABLE IF NOT EXISTS quiz_state (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL, updated TEXT NOT NULL)",
-			),
+		// 基础表也一起兜住：新环境忘了跑 schema.sql 时统计照样能落库
+		env.DB.prepare(
+			"CREATE TABLE IF NOT EXISTS views (day TEXT NOT NULL, path TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, path))",
+		),
+		env.DB.prepare(
+			"CREATE TABLE IF NOT EXISTS ai_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, question TEXT NOT NULL, model TEXT, ms INTEGER, tokens INTEGER, ok INTEGER NOT NULL DEFAULT 1)",
+		),
+		env.DB.prepare(
+			"CREATE TABLE IF NOT EXISTS views_hourly (day TEXT NOT NULL, hour INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, hour))",
+		),
+		env.DB.prepare(
+			"CREATE TABLE IF NOT EXISTS ai_hits (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, hits INTEGER NOT NULL DEFAULT 0, paths TEXT DEFAULT '')",
+		),
+		env.DB.prepare(
+			"CREATE TABLE IF NOT EXISTS search_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, day TEXT NOT NULL, keyword TEXT NOT NULL, results INTEGER DEFAULT 0)",
+		),
+		env.DB.prepare(
+			"CREATE TABLE IF NOT EXISTS quiz_grade (slug TEXT NOT NULL, grade INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, updated TEXT NOT NULL, PRIMARY KEY (slug, grade))",
+		),
+		env.DB.prepare(
+			"CREATE TABLE IF NOT EXISTS quiz_state (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL, updated TEXT NOT NULL)",
+		),
+		// 数据台 v2：全站事件表（埋点只有这一张，聚合见 worker/lib/stats.js）
+		...EVENTS_DDL.map((sql) => env.DB.prepare(sql)),
 	]).catch((error) => {
 		schemaReady.delete(env.DB); // 失败就别缓存，下次重试
 		console.warn("自动建表失败", error);
@@ -139,7 +159,9 @@ function today() {
 }
 
 function daysAgo(days) {
-	return new Date(Date.now() + 8 * 3600 * 1000 - days * 86400000).toISOString().slice(0, 10);
+	return new Date(Date.now() + 8 * 3600 * 1000 - days * 86400000)
+		.toISOString()
+		.slice(0, 10);
 }
 
 // 管理员 cookie 与登录态校验统一放在 worker/lib/admin.js（评论管理接口也用它）
@@ -200,12 +222,16 @@ async function handleChat(request, env, ctx) {
 
 	// 记一笔 AI 使用情况（不阻塞回答）
 	if (env?.DB) {
-		const contextPaths = (Array.isArray(payload?.context) ? payload.context : [])
+		const contextPaths = (
+			Array.isArray(payload?.context) ? payload.context : []
+		)
 			.slice(0, 3)
 			.map((item) => String(item?.url ?? ""))
 			.filter(Boolean)
 			.join(",");
-		const hitCount = Array.isArray(payload?.context) ? payload.context.length : 0;
+		const hitCount = Array.isArray(payload?.context)
+			? payload.context.length
+			: 0;
 		const now = new Date().toISOString();
 		ctx?.waitUntil?.(
 			(async () => {
@@ -213,13 +239,18 @@ async function handleChat(request, env, ctx) {
 				await env.DB.batch([
 					env.DB.prepare(
 						"INSERT INTO ai_log (ts, day, question, model, ms, tokens, ok) VALUES (?, ?, ?, ?, ?, ?, ?)",
-					).bind(now, today(), question, model || DEFAULT_MODEL, Date.now() - startedAt, tokens ?? 0, ok),
-					env.DB.prepare("INSERT INTO ai_hits (ts, day, hits, paths) VALUES (?, ?, ?, ?)").bind(
+					).bind(
 						now,
 						today(),
-						hitCount,
-						contextPaths,
+						question,
+						model || DEFAULT_MODEL,
+						Date.now() - startedAt,
+						tokens ?? 0,
+						ok,
 					),
+					env.DB.prepare(
+						"INSERT INTO ai_hits (ts, day, hits, paths) VALUES (?, ?, ?, ?)",
+					).bind(now, today(), hitCount, contextPaths),
 				]);
 			})().catch((error) => console.warn("AI 记录写入失败", error)),
 		);
@@ -231,7 +262,10 @@ async function handleChat(request, env, ctx) {
 		answer,
 		sources: (Array.isArray(payload?.context) ? payload.context : [])
 			.slice(0, MAX_CONTEXT_ITEMS)
-			.map((item) => ({ title: String(item?.title ?? ""), url: String(item?.url ?? "") })),
+			.map((item) => ({
+				title: String(item?.title ?? ""),
+				url: String(item?.url ?? ""),
+			})),
 	});
 }
 
@@ -244,11 +278,20 @@ async function handleHit(request, env, ctx) {
 		return json({ ok: true });
 	}
 
-	let path = String(body?.path ?? "/").split("?")[0].split("#")[0];
+	const path = String(body?.path ?? "/")
+		.split("?")[0]
+		.split("#")[0];
 	if (!path.startsWith("/") || path.length > 300) return json({ ok: true });
-	if (path.startsWith("/admin") || path.startsWith("/api/") || path === "/post-index.json") return json({ ok: true });
+	if (
+		path.startsWith("/admin") ||
+		path.startsWith("/api/") ||
+		path === "/post-index.json"
+	)
+		return json({ ok: true });
 
-	const hour = Number(new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(11, 13));
+	const hour = Number(
+		new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(11, 13),
+	);
 	const day = today();
 
 	ctx?.waitUntil?.(
@@ -262,6 +305,13 @@ async function handleHit(request, env, ctx) {
 					"INSERT INTO views_hourly (day, hour, count) VALUES (?, ?, 1) ON CONFLICT(day, hour) DO UPDATE SET count = count + 1",
 				).bind(day, hour),
 			]);
+			// 事件流：聚合表给长期趋势，事件表给漏斗与留存
+			await recordEvent(env, {
+				type: "page_view",
+				path,
+				vid: body?.vid,
+				sid: body?.sid,
+			});
 		})().catch((error) => console.warn("访问统计写入失败", error)),
 	);
 
@@ -287,9 +337,20 @@ async function handleSearchLog(request, env, ctx) {
 	ctx?.waitUntil?.(
 		(async () => {
 			await ensureSchema(env);
-			await env.DB.prepare("INSERT INTO search_log (ts, day, keyword, results) VALUES (?, ?, ?, ?)")
+			await env.DB.prepare(
+				"INSERT INTO search_log (ts, day, keyword, results) VALUES (?, ?, ?, ?)",
+			)
 				.bind(new Date().toISOString(), today(), keyword, results)
 				.run();
+			await recordEvent(env, {
+				type: "search",
+				text: keyword,
+				n: results,
+				hits: results,
+				ok: results > 0,
+				vid: body?.vid,
+				sid: body?.sid,
+			});
 		})().catch(() => {}),
 	);
 
@@ -306,7 +367,9 @@ async function handleQuizGrade(request, env, ctx) {
 		return json({ ok: true });
 	}
 
-	const slug = String(body?.slug ?? "").trim().slice(0, 120);
+	const slug = String(body?.slug ?? "")
+		.trim()
+		.slice(0, 120);
 	const grade = Number(body?.grade);
 	if (!/^[a-zA-Z0-9_-]{1,120}$/.test(slug)) return json({ ok: true });
 	if (![0, 1, 2].includes(grade)) return json({ ok: true });
@@ -319,19 +382,78 @@ async function handleQuizGrade(request, env, ctx) {
 			)
 				.bind(slug, grade, today())
 				.run();
+			await recordEvent(env, {
+				type: "quiz",
+				path: slug,
+				n: grade,
+				vid: body?.vid,
+				sid: body?.sid,
+			});
 		})().catch(() => {}),
 	);
 
 	return json({ ok: true });
 }
 
-/** 读取云端的刷题进度（只有博主能读：复用后台密码登录后的 cookie） */
-async function handleQuizStateGet(request, env) {
+/**
+ * 通用埋点：前端想记什么就记什么（打开 AI 面板、点开某篇笔记…）。
+ * 「提问」不从这里走——ask.js 在流结束时自己记，才拿得到真实延迟与 tokens。
+ */
+const CLIENT_EVENT_TYPES = new Set([
+	"page_view",
+	"panel_open",
+	"search",
+	"quiz",
+	"comment",
+]);
+
+async function handleTrack(request, env, ctx) {
+	if (!env?.DB) return json({ ok: true });
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ ok: true });
+	}
+
+	const type = String(body?.type ?? "").slice(0, 24);
+	if (!CLIENT_EVENT_TYPES.has(type)) return json({ ok: true });
+
+	ctx?.waitUntil?.(
+		recordEvent(env, {
+			type,
+			path: String(body?.path ?? "")
+				.split("?")[0]
+				.slice(0, 300),
+			vid: body?.vid,
+			sid: body?.sid,
+			ms: body?.ms,
+			ttft: body?.ttft,
+			tokens: body?.tokens,
+			ok: body?.ok,
+			err: body?.err,
+			n: body?.n,
+			hits: body?.hits,
+			tag: body?.tag,
+			text: body?.text,
+			meta: body?.meta,
+		}).catch(() => {}),
+	);
+
+	return json({ ok: true });
+}
+
+/** 读取云端的刷题进度（只有博主能读：复用后台密码登录后的 cookie） */ async function handleQuizStateGet(
+	request,
+	env,
+) {
 	if (!(await isAdmin(request, env))) return json({ error: "未登录" }, 401);
 	if (!env?.DB) return json({ error: "数据库还没绑定" }, 500);
 	await ensureSchema(env);
 
-	const row = await env.DB.prepare("SELECT payload, updated FROM quiz_state WHERE id = 1").first();
+	const row = await env.DB.prepare(
+		"SELECT payload, updated FROM quiz_state WHERE id = 1",
+	).first();
 	if (!row) return json({ ok: true, payload: null, updated: null });
 
 	return json({ ok: true, payload: row.payload, updated: row.updated });
@@ -350,7 +472,10 @@ async function handleQuizStatePut(request, env) {
 		return json({ error: "请求格式不对" }, 400);
 	}
 
-	const payload = typeof body?.payload === "string" ? body.payload : JSON.stringify(body?.payload ?? null);
+	const payload =
+		typeof body?.payload === "string"
+			? body.payload
+			: JSON.stringify(body?.payload ?? null);
 	if (!payload || payload === "null") return json({ error: "没有内容" }, 400);
 	if (payload.length > 2_000_000) return json({ error: "进度数据太大了" }, 413);
 
@@ -374,7 +499,8 @@ async function handleLogin(request, env) {
 
 	const password = String(body?.password ?? "");
 	const expected = (env?.ADMIN_PASSWORD ?? "").trim();
-	if (!expected) return json({ error: "还没设置后台密码（ADMIN_PASSWORD）" }, 500);
+	if (!expected)
+		return json({ error: "还没设置后台密码（ADMIN_PASSWORD）" }, 500);
 	if (!safeEqual(password, expected)) {
 		await new Promise((resolve) => setTimeout(resolve, 400)); // 拖慢暴力猜密码
 		return json({ error: "密码不对" }, 401);
@@ -415,20 +541,38 @@ async function handleOverview(request, env) {
 		aiOkTotal,
 	] = await env.DB.batch([
 		env.DB.prepare("SELECT COALESCE(SUM(count), 0) AS v FROM views"),
-		env.DB.prepare("SELECT COALESCE(SUM(count), 0) AS v FROM views WHERE day = ?").bind(todayStr),
-		env.DB.prepare("SELECT COALESCE(SUM(count), 0) AS v FROM views WHERE day = ?").bind(yesterdayStr),
-		env.DB.prepare("SELECT day, SUM(count) AS v FROM views WHERE day >= ? GROUP BY day ORDER BY day").bind(fromStr),
+		env.DB.prepare(
+			"SELECT COALESCE(SUM(count), 0) AS v FROM views WHERE day = ?",
+		).bind(todayStr),
+		env.DB.prepare(
+			"SELECT COALESCE(SUM(count), 0) AS v FROM views WHERE day = ?",
+		).bind(yesterdayStr),
+		env.DB.prepare(
+			"SELECT day, SUM(count) AS v FROM views WHERE day >= ? GROUP BY day ORDER BY day",
+		).bind(fromStr),
 		env.DB.prepare(
 			"SELECT path, SUM(count) AS v FROM views WHERE day >= ? GROUP BY path ORDER BY v DESC LIMIT 60",
 		).bind(fromStr),
 		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log"),
-		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log WHERE day = ?").bind(todayStr),
-		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log WHERE day = ?").bind(yesterdayStr),
-		env.DB.prepare("SELECT AVG(ms) AS v FROM ai_log WHERE ok = 1 AND day >= ?").bind(fromStr),
+		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log WHERE day = ?").bind(
+			todayStr,
+		),
+		env.DB.prepare("SELECT COUNT(*) AS v FROM ai_log WHERE day = ?").bind(
+			yesterdayStr,
+		),
+		env.DB.prepare(
+			"SELECT AVG(ms) AS v FROM ai_log WHERE ok = 1 AND day >= ?",
+		).bind(fromStr),
 		env.DB.prepare("SELECT COALESCE(SUM(tokens), 0) AS v FROM ai_log"),
-		env.DB.prepare("SELECT ts, question, model, ms, ok FROM ai_log ORDER BY id DESC LIMIT 30"),
-		env.DB.prepare("SELECT model, COUNT(*) AS v FROM ai_log GROUP BY model ORDER BY v DESC LIMIT 5"),
-		env.DB.prepare("SELECT day, COUNT(*) AS v FROM ai_log WHERE day >= ? GROUP BY day ORDER BY day").bind(fromStr),
+		env.DB.prepare(
+			"SELECT ts, question, model, ms, ok FROM ai_log ORDER BY id DESC LIMIT 30",
+		),
+		env.DB.prepare(
+			"SELECT model, COUNT(*) AS v FROM ai_log GROUP BY model ORDER BY v DESC LIMIT 5",
+		),
+		env.DB.prepare(
+			"SELECT day, COUNT(*) AS v FROM ai_log WHERE day >= ? GROUP BY day ORDER BY day",
+		).bind(fromStr),
 		env.DB.prepare("SELECT COALESCE(SUM(ok), 0) AS v FROM ai_log"),
 	]);
 
@@ -459,17 +603,25 @@ async function handleOverview(request, env) {
 			quizRows,
 			questionRows,
 		] = await env.DB.batch([
-			env.DB.prepare("SELECT hour, SUM(count) AS v FROM views_hourly WHERE day >= ? GROUP BY hour ORDER BY hour").bind(fromStr),
+			env.DB.prepare(
+				"SELECT hour, SUM(count) AS v FROM views_hourly WHERE day >= ? GROUP BY hour ORDER BY hour",
+			).bind(fromStr),
 			env.DB.prepare(
 				"SELECT keyword, COUNT(*) AS v FROM search_log WHERE day >= ? GROUP BY keyword ORDER BY v DESC LIMIT 10",
 			).bind(fromStr),
-			env.DB.prepare("SELECT COUNT(*) AS v FROM search_log WHERE day >= ?").bind(fromStr),
+			env.DB.prepare(
+				"SELECT COUNT(*) AS v FROM search_log WHERE day >= ?",
+			).bind(fromStr),
 			env.DB.prepare(
 				"SELECT COUNT(*) AS n, COALESCE(SUM(hits), 0) AS sum, COALESCE(SUM(CASE WHEN hits = 0 THEN 1 ELSE 0 END), 0) AS zero FROM ai_hits WHERE day >= ?",
 			).bind(fromStr),
-			env.DB.prepare("SELECT paths FROM ai_hits WHERE day >= ? ORDER BY id DESC LIMIT 500").bind(fromStr),
+			env.DB.prepare(
+				"SELECT paths FROM ai_hits WHERE day >= ? ORDER BY id DESC LIMIT 500",
+			).bind(fromStr),
 			// 日历热力图用：最近 20 周每天的阅读量（不受时间范围影响）
-			env.DB.prepare("SELECT day, SUM(count) AS v FROM views WHERE day >= ? GROUP BY day ORDER BY day").bind(daysAgo(139)),
+			env.DB.prepare(
+				"SELECT day, SUM(count) AS v FROM views WHERE day >= ? GROUP BY day ORDER BY day",
+			).bind(daysAgo(139)),
 			// 零结果搜索词：搜了但一条都没搜到的，就是还缺的题
 			env.DB.prepare(
 				"SELECT keyword, COUNT(*) AS v FROM search_log WHERE results = 0 AND day >= ? GROUP BY keyword ORDER BY v DESC LIMIT 12",
@@ -479,21 +631,37 @@ async function handleOverview(request, env) {
 				"SELECT slug, SUM(CASE WHEN grade = 0 THEN count ELSE 0 END) AS miss, SUM(CASE WHEN grade = 1 THEN count ELSE 0 END) AS stuck, SUM(count) AS total FROM quiz_grade GROUP BY slug ORDER BY miss DESC, total DESC LIMIT 12",
 			),
 			// 最近 90 天的提问原文，交给前端做聚类
-			env.DB.prepare("SELECT question FROM ai_log WHERE day >= ? ORDER BY id DESC LIMIT 400").bind(daysAgo(90)),
+			env.DB.prepare(
+				"SELECT question FROM ai_log WHERE day >= ? ORDER BY id DESC LIMIT 400",
+			).bind(daysAgo(90)),
 		]);
 
-		hours = (hourRows?.results ?? []).map((row) => ({ hour: row.hour, count: row.v }));
-		calendar = (calendarRows?.results ?? []).map((row) => ({ day: row.day, count: row.v }));
-		searchTop = (searchRows?.results ?? []).map((row) => ({ keyword: row.keyword, count: row.v }));
+		hours = (hourRows?.results ?? []).map((row) => ({
+			hour: row.hour,
+			count: row.v,
+		}));
+		calendar = (calendarRows?.results ?? []).map((row) => ({
+			day: row.day,
+			count: row.v,
+		}));
+		searchTop = (searchRows?.results ?? []).map((row) => ({
+			keyword: row.keyword,
+			count: row.v,
+		}));
 		searchTotal = searchTotalRow?.results?.[0]?.v ?? 0;
-		searchZero = (zeroRows?.results ?? []).map((row) => ({ keyword: row.keyword, count: row.v }));
+		searchZero = (zeroRows?.results ?? []).map((row) => ({
+			keyword: row.keyword,
+			count: row.v,
+		}));
 		quizTop = (quizRows?.results ?? []).map((row) => ({
 			slug: row.slug,
 			miss: row.miss ?? 0,
 			stuck: row.stuck ?? 0,
 			total: row.total ?? 0,
 		}));
-		aiQuestions = (questionRows?.results ?? []).map((row) => String(row.question ?? "")).filter(Boolean);
+		aiQuestions = (questionRows?.results ?? [])
+			.map((row) => String(row.question ?? ""))
+			.filter(Boolean);
 
 		const hits = hitsRow?.results?.[0] ?? { n: 0, sum: 0, zero: 0 };
 		aiZeroHits = hits.zero ?? 0;
@@ -522,8 +690,14 @@ async function handleOverview(request, env) {
 			total: totalViews?.results?.[0]?.v ?? 0,
 			today: todayViews?.results?.[0]?.v ?? 0,
 			yesterday: yesterdayViews?.results?.[0]?.v ?? 0,
-			series: (series?.results ?? []).map((row) => ({ day: row.day, count: row.v })),
-			top: (topPages?.results ?? []).map((row) => ({ path: row.path, count: row.v })),
+			series: (series?.results ?? []).map((row) => ({
+				day: row.day,
+				count: row.v,
+			})),
+			top: (topPages?.results ?? []).map((row) => ({
+				path: row.path,
+				count: row.v,
+			})),
 			hours,
 			calendar,
 			search: { total: searchTotal, top: searchTop, zero: searchZero },
@@ -538,7 +712,10 @@ async function handleOverview(request, env) {
 			zeroHits: aiZeroHits,
 			avgHits: aiAvgHits,
 			topPaths: aiTopPaths,
-			series: (aiSeries?.results ?? []).map((row) => ({ day: row.day, count: row.v })),
+			series: (aiSeries?.results ?? []).map((row) => ({
+				day: row.day,
+				count: row.v,
+			})),
 			recent: (aiRecent?.results ?? []).slice(0, 15).map((row) => ({
 				ts: row.ts,
 				question: row.question,
@@ -546,7 +723,10 @@ async function handleOverview(request, env) {
 				ms: row.ms,
 				ok: row.ok,
 			})),
-			models: (aiModels?.results ?? []).map((row) => ({ model: row.model, count: row.v })),
+			models: (aiModels?.results ?? []).map((row) => ({
+				model: row.model,
+				count: row.v,
+			})),
 			questions: aiQuestions,
 		},
 		quiz: { top: quizTop },
@@ -562,10 +742,16 @@ export default {
 		} catch (error) {
 			// 任何没被接住的异常都变成可重试的 500，而不是让请求直接崩掉
 			console.error("未捕获的请求错误", error);
-			return new Response(JSON.stringify({ error: "服务出了点问题，稍后重试", retryable: true }), {
-				status: 500,
-				headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-			});
+			return new Response(
+				JSON.stringify({ error: "服务出了点问题，稍后重试", retryable: true }),
+				{
+					status: 500,
+					headers: {
+						"content-type": "application/json; charset=utf-8",
+						"cache-control": "no-store",
+					},
+				},
+			);
 		}
 	},
 };
@@ -577,11 +763,16 @@ async function handleRequest(request, env, ctx) {
 
 		// MCP：给自己的题库开一个标准入口，Cursor / Claude 直接连
 		if (path === "/mcp" || path === "/mcp/") {
-			if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: {
-				"access-control-allow-origin": "*",
-				"access-control-allow-headers": "content-type, mcp-session-id, mcp-protocol-version",
-				"access-control-allow-methods": "POST, GET, OPTIONS",
-			} });
+			if (request.method === "OPTIONS")
+				return new Response(null, {
+					status: 204,
+					headers: {
+						"access-control-allow-origin": "*",
+						"access-control-allow-headers":
+							"content-type, mcp-session-id, mcp-protocol-version",
+						"access-control-allow-methods": "POST, GET, OPTIONS",
+					},
+				});
 			if (request.method === "POST") return handleMcp(request, env);
 			if (request.method === "GET") return describeMcp();
 			return mcpJson({ error: "只支持 POST / GET" }, 405);
@@ -591,33 +782,47 @@ async function handleRequest(request, env, ctx) {
 			if (request.method === "OPTIONS") {
 				return new Response(null, {
 					status: 204,
-					headers: { "access-control-allow-headers": "content-type", "access-control-allow-methods": "POST, GET" },
+					headers: {
+						"access-control-allow-headers": "content-type",
+						"access-control-allow-methods": "POST, GET",
+					},
 				});
 			}
 
 			if (path === "/api/chat") {
-				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				if (request.method !== "POST")
+					return json({ error: "只支持 POST" }, 405);
 				return handleChat(request, env, ctx);
 			}
 
 			// 笔记页侧边栏的 AI 助手：SSE 流式 + 工具调用
 			if (path === "/api/ask") {
-				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				if (request.method !== "POST")
+					return json({ error: "只支持 POST" }, 405);
 				return handleAsk(request, env, ctx);
 			}
 
 			if (path === "/api/hit") {
-				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				if (request.method !== "POST")
+					return json({ error: "只支持 POST" }, 405);
 				return handleHit(request, env, ctx);
 			}
 
 			if (path === "/api/search-log") {
-				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				if (request.method !== "POST")
+					return json({ error: "只支持 POST" }, 405);
 				return handleSearchLog(request, env, ctx);
 			}
 
+			if (path === "/api/track") {
+				if (request.method !== "POST")
+					return json({ error: "只支持 POST" }, 405);
+				return handleTrack(request, env, ctx);
+			}
+
 			if (path === "/api/quiz/grade") {
-				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				if (request.method !== "POST")
+					return json({ error: "只支持 POST" }, 405);
 				return handleQuizGrade(request, env, ctx);
 			}
 
@@ -634,17 +839,22 @@ async function handleRequest(request, env, ctx) {
 			}
 
 			if (path === "/api/comments/report") {
-				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				if (request.method !== "POST")
+					return json({ error: "只支持 POST" }, 405);
 				return handleReport(request, env, ctx);
 			}
 
 			if (path === "/api/admin/login") {
-				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				if (request.method !== "POST")
+					return json({ error: "只支持 POST" }, 405);
 				return handleLogin(request, env);
 			}
 
 			if (path === "/api/admin/logout") {
-				return json({ ok: true }, 200, { "set-cookie": "wkb_admin=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0" });
+				return json({ ok: true }, 200, {
+					"set-cookie":
+						"wkb_admin=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
+				});
 			}
 
 			if (path === "/api/admin/comments") {
@@ -653,27 +863,37 @@ async function handleRequest(request, env, ctx) {
 			}
 
 			if (path === "/api/admin/comments/action") {
-				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				if (request.method !== "POST")
+					return json({ error: "只支持 POST" }, 405);
 				return handleAdminAction(request, env);
 			}
 
 			if (path === "/api/admin/comments/reply") {
-				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
+				if (request.method !== "POST")
+					return json({ error: "只支持 POST" }, 405);
 				return handleAdminReply(request, env);
 			}
 
 			if (path === "/api/admin/comments/settings") {
-				if (request.method !== "GET" && request.method !== "POST") return json({ error: "只支持 GET / POST" }, 405);
+				if (request.method !== "GET" && request.method !== "POST")
+					return json({ error: "只支持 GET / POST" }, 405);
 				return handleAdminSettings(request, env);
 			}
 
 			if (path === "/api/admin/comments/keywords") {
-				if (!["GET", "POST", "DELETE"].includes(request.method)) return json({ error: "只支持 GET / POST / DELETE" }, 405);
+				if (!["GET", "POST", "DELETE"].includes(request.method))
+					return json({ error: "只支持 GET / POST / DELETE" }, 405);
 				return handleAdminKeywords(request, env);
 			}
 
 			if (path === "/api/admin/overview") {
 				return handleOverview(request, env);
+			}
+
+			// 数据台 v2：按卡片返回（worker/admin-stats.js）
+			if (path === "/api/admin/stats") {
+				if (request.method !== "GET") return json({ error: "只支持 GET" }, 405);
+				return handleAdminStats(request, env);
 			}
 
 			return json({ error: "没有这个接口" }, 404);
@@ -682,4 +902,3 @@ async function handleRequest(request, env, ctx) {
 		return env.ASSETS.fetch(request);
 	}
 }
-

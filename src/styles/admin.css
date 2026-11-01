@@ -1223,3 +1223,436 @@ html.dark .dash .kpi {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }
+
+/* ================= 数据台 v2：卡片契约 ================= */
+/* 接口按「卡片」返回，前端按 kind 渲染；这里只补 v1 没用到的那几种零件 */
+
+.dash .grid > .kpi-grid {
+	grid-column: 1 / -1;
+}
+
+/* 6 张 KPI 时按 3 列排，避免最后一行只剩两个 */
+@media (min-width: 57rem) {
+	.dash .kpi-grid.cols-3 {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+@media (min-width: 34rem) and (max-width: 57rem) {
+	.dash .kpi-grid.cols-3 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+.dash .card-body {
+	min-width: 0;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+
+.dash .notice {
+	grid-column: 1 / -1;
+	padding: 0.6rem 0.8rem;
+	border-radius: var(--radius-medium);
+	background: var(--field);
+	color: var(--ink-2);
+	font-size: 0.72rem;
+	line-height: 1.6;
+}
+
+.dash .notice.bad {
+	color: var(--down);
+}
+
+/* 横条分布 */
+.dash .blist {
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+}
+
+.dash .brow {
+	display: grid;
+	grid-template-columns: 5.6rem minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.72rem;
+}
+
+.dash .blabel {
+	color: var(--ink-2);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.dash .btrack {
+	height: 0.42rem;
+	border-radius: 1rem;
+	background: var(--line-soft);
+	overflow: hidden;
+}
+
+.dash .btrack i {
+	display: block;
+	height: 100%;
+	width: 0;
+	border-radius: 1rem;
+	background: linear-gradient(90deg, var(--c2), var(--c1));
+	transition: width 0.5s cubic-bezier(0.22, 0.68, 0.28, 1);
+}
+
+.dash .bval {
+	color: var(--ink-1);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.dash .bval em {
+	font-style: normal;
+	font-weight: 500;
+	color: var(--ink-3);
+	margin-left: 0.25rem;
+	font-size: 0.66rem;
+}
+
+/* 表格 */
+.dash .tbl-wrap {
+	overflow-x: auto;
+}
+
+.dash .tbl {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.72rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.dash .tbl th {
+	text-align: right;
+	font-weight: 500;
+	color: var(--ink-3);
+	padding: 0.3rem 0.45rem;
+	border-bottom: 1px solid var(--line);
+	white-space: nowrap;
+}
+
+.dash .tbl th:first-child,
+.dash .tbl td.lead {
+	text-align: left;
+}
+
+.dash .tbl td {
+	text-align: right;
+	padding: 0.38rem 0.45rem;
+	border-bottom: 1px solid var(--line-soft);
+	color: var(--ink-2);
+	white-space: nowrap;
+}
+
+.dash .tbl tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+.dash .tbl td.lead {
+	color: var(--ink-1);
+	font-weight: 600;
+	max-width: 9rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* 热力图 */
+.dash .heat {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.dash .hrow {
+	display: grid;
+	grid-template-columns: 1.9rem minmax(0, 1fr);
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.dash .hlab {
+	font-size: 0.64rem;
+	color: var(--ink-3);
+	white-space: nowrap;
+}
+
+.dash .hcell {
+	display: grid;
+	grid-template-columns: repeat(24, minmax(0, 1fr));
+	gap: 2px;
+}
+
+.dash .hm {
+	aspect-ratio: 1 / 1;
+	border-radius: 2px;
+	background: var(--c1);
+	opacity: 0.07;
+}
+
+.dash .hm.lv1 {
+	opacity: 0.22;
+}
+
+.dash .hm.lv2 {
+	opacity: 0.42;
+}
+
+.dash .hm.lv3 {
+	opacity: 0.68;
+}
+
+.dash .hm.lv4 {
+	opacity: 1;
+}
+
+.dash .haxis {
+	display: grid;
+	grid-template-columns: 1.9rem minmax(0, 1fr);
+	gap: 0.35rem;
+	margin-top: 0.15rem;
+}
+
+.dash .hgrid {
+	display: grid;
+	grid-template-columns: repeat(24, minmax(0, 1fr));
+	font-size: 0.6rem;
+	color: var(--ink-3);
+}
+
+/* 漏斗 */
+.dash .funnel {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.dash .fstep {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+}
+
+.dash .fmeta {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.4rem;
+	font-size: 0.72rem;
+}
+
+.dash .flabel {
+	color: var(--ink-2);
+	white-space: nowrap;
+}
+
+.dash .fvalue {
+	color: var(--ink-1);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.dash .fvalue em {
+	font-style: normal;
+	font-weight: 500;
+	color: var(--ink-3);
+	font-size: 0.66rem;
+	margin-left: 0.3rem;
+}
+
+.dash .ftrack {
+	height: 0.5rem;
+	border-radius: 1rem;
+	background: var(--line-soft);
+	overflow: hidden;
+}
+
+.dash .ftrack i {
+	display: block;
+	height: 100%;
+	width: 0;
+	border-radius: 1rem;
+	background: linear-gradient(90deg, var(--c1), var(--c3));
+	animation: funnelIn 0.6s cubic-bezier(0.22, 0.68, 0.28, 1) both;
+}
+
+@keyframes funnelIn {
+	from {
+		transform: scaleX(0);
+		transform-origin: left;
+	}
+	to {
+		transform: scaleX(1);
+		transform-origin: left;
+	}
+}
+
+.dash .floss {
+	font-size: 0.62rem;
+	color: var(--ink-3);
+}
+
+/* 分位数标记 */
+.dash .marks {
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	margin-bottom: 0.3rem;
+}
+
+.dash .mark {
+	font-size: 0.66rem;
+	padding: 0.12rem 0.4rem;
+	border-radius: 1rem;
+	background: var(--field);
+	color: var(--ink-2);
+	font-variant-numeric: tabular-nums;
+}
+
+.dash .mark em {
+	font-style: normal;
+	color: var(--ink-3);
+	margin-right: 0.25rem;
+}
+
+/* 环图中心数字 */
+.dash .donut .dn {
+	font-size: 20px;
+	font-weight: 700;
+	fill: var(--ink-1);
+}
+
+.dash .donut .ds {
+	font-size: 10px;
+	fill: var(--ink-3);
+}
+
+/* 日志 v2 */
+.dash .logbar {
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+	flex-wrap: wrap;
+	margin-bottom: 0.4rem;
+}
+
+.dash .logbar button {
+	border: 0;
+	background: var(--field);
+	color: var(--ink-2);
+	font-size: 0.66rem;
+	padding: 0.18rem 0.5rem;
+	border-radius: 1rem;
+	cursor: pointer;
+	font-family: inherit;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dash .logbar button:hover {
+	color: var(--ink-1);
+}
+
+.dash .logbar button.is-active {
+	background: var(--primary);
+	color: #fff;
+}
+
+.dash .loghint {
+	margin-left: auto;
+	font-size: 0.64rem;
+	color: var(--ink-3);
+}
+
+.dash .llog li.lrow {
+	display: grid;
+	grid-template-columns: 5rem minmax(0, 1fr) auto;
+	align-items: start;
+	gap: 0.5rem;
+	padding: 0.45rem 0.2rem;
+	border-bottom: 1px solid var(--line-soft);
+}
+
+.dash .llog li.lrow:last-child {
+	border-bottom: 0;
+}
+
+.dash .lbody {
+	display: flex;
+	flex-direction: column;
+	gap: 0.22rem;
+	min-width: 0;
+}
+
+.dash .lq {
+	font-size: 0.74rem;
+	color: var(--ink-1);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.dash .lbadges {
+	display: flex;
+	gap: 0.25rem;
+	flex-wrap: wrap;
+}
+
+.dash .bd {
+	font-weight: 500;
+	font-size: 0.62rem;
+	padding: 0.06rem 0.35rem;
+	border-radius: 0.3rem;
+	background: var(--field);
+	color: var(--ink-3);
+	white-space: nowrap;
+}
+
+.dash .bd.note {
+	color: var(--ink-2);
+	max-width: 12rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dash .bd.warn {
+	color: var(--alt);
+}
+
+.dash .bd.bad {
+	color: var(--down);
+}
+
+.dash .flat {
+	color: var(--ink-3);
+}
+
+.dash .rank-title.is-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	display: block;
+}
+
+@media (max-width: 620px) {
+	.dash .llog li.lrow {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+
+	.dash .llog .log-time {
+		grid-column: 1 / -1;
+		order: -1;
+	}
+
+	.dash .brow {
+		grid-template-columns: 4.4rem minmax(0, 1fr) auto;
+	}
+}
