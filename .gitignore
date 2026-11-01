@@ -52,7 +52,7 @@ yarn.lock
 
 
 # 本地调试产物
-.probe*.mjs
+.probe*
 .dev*.log
 .seed.sql
 .chrome-prof/
@@ -63,7 +63,7 @@ yarn.lock
 
 # 本地调试（续）
 .chrome-profile/
-.probe*.js
+.probe*
 .slug-progress.json
 .restyle-backup/
 .restyle-preview/
