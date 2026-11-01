@@ -1,0 +1,108 @@
+---
+// 数据台外壳：登录门 + 左侧导航 + 顶栏，各分页只负责自己的卡片
+// 样式与客户端逻辑都抽到了 src/styles/admin.css 与 src/scripts/admin-dash.ts
+import "../styles/variables.styl";
+import "../styles/admin.css";
+import Layout from "@layouts/Layout.astro";
+
+interface Props {
+	title?: string;
+}
+
+const { title = "数据台" } = Astro.props;
+
+const nav = [
+	{ href: "/admin/", label: "概览", hint: "关键指标、阅读与提问趋势" },
+	{ href: "/admin/reader/", label: "读者", hint: "时段、参与度、搜索词" },
+	{ href: "/admin/ai/", label: "AI", hint: "问答成功率、最常被问" },
+	{ href: "/admin/content/", label: "内容", hint: "写作节奏、题型分布" },
+	{ href: "/admin/comments/", label: "评论", hint: "审核、回复、屏蔽词" },
+];
+
+// 归一化当前路径：/admin/reader/ → /admin/reader
+const current = Astro.url.pathname.replace(/\/+$/, "") || "/";
+const isActive = (href: string) => {
+	const target = href.replace(/\/+$/, "") || "/";
+	return target === "/admin" ? current === "/admin" : current === target;
+};
+---
+
+<Layout title={title} noAIChat>
+	<main class="dash" id="dash">
+		<!-- ================= 登录 ================= -->
+		<section class="gate" id="gate" hidden>
+			<div class="gate-card">
+				<span class="gate-lock" aria-hidden="true">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+						<rect x="4" y="10.5" width="16" height="9.5" rx="3"></rect>
+						<path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"></path>
+					</svg>
+				</span>
+				<h1>数据台</h1>
+				<p>只给博主自己看。输密码进入，数据不对任何访客公开。</p>
+				<form id="login-form" class="gate-form">
+					<input id="password" type="password" placeholder="后台密码" autocomplete="current-password" />
+					<button type="submit">进入</button>
+				</form>
+				<p class="gate-error" id="login-error" hidden></p>
+				<a class="gate-back" href="/">← 回博客</a>
+			</div>
+		</section>
+
+		<!-- ================= 数据台 ================= -->
+		<div id="console" hidden>
+			<aside class="side">
+				<div class="brand side-brand">
+					<span class="brand-mark">W</span>
+					<div class="brand-text">
+						<h1>数据台</h1>
+						<p id="stamp">读取中…</p>
+					</div>
+				</div>
+
+				<span class="side-group">浏览</span>
+				<nav class="side-nav" aria-label="数据台导航">
+					{nav.map((item) => (
+						<a
+							href={item.href}
+							title={item.hint}
+							class:list={["side-link", { "is-active": isActive(item.href) }]}
+							aria-current={isActive(item.href) ? "page" : undefined}
+							data-no-swup
+						>
+							<i></i>
+							{item.label}
+						</a>
+					))}
+				</nav>
+			</aside>
+
+			<div class="work">
+				<header class="topbar">
+					<div class="toolbar">
+						<div class="seg" id="range-seg" role="group" aria-label="时间范围">
+							<button type="button" data-range="7">7 天</button>
+							<button type="button" data-range="14" class="is-active">14 天</button>
+							<button type="button" data-range="30">30 天</button>
+						</div>
+						<button type="button" class="btn" id="refresh">刷新</button>
+						<a class="btn" href="/">回博客</a>
+						<button type="button" class="btn" id="logout">退出</button>
+					</div>
+				</header>
+
+				<slot />
+
+				<footer class="foot">
+					<span>统计时区 GMT+8 · 不记录访客 IP · 数据仅博主可见</span>
+				</footer>
+			</div>
+		</div>
+	</main>
+</Layout>
+
+<script>
+	import { initAdminDash } from "../scripts/admin-dash";
+
+	initAdminDash();
+</script>

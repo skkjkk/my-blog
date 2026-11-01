@@ -28,9 +28,11 @@ interface Props {
 	description?: string;
 	lang?: string;
 	setOGTypeArticle?: boolean;
+	/** 后台这类不给访客看的页面，可以不渲染右下角的 AI 浮窗（用渲染层开关，别再写全局 CSS 去隐藏） */
+	noAIChat?: boolean;
 }
 
-let { title, banner, description, lang, setOGTypeArticle } = Astro.props;
+let { title, banner, description, lang, setOGTypeArticle, noAIChat = false } = Astro.props;
 
 // Cloudflare Web Analytics 的 token（构建时读取，留空则不输出统计脚本）
 const analyticsToken = process.env.CF_ANALYTICS_TOKEN ?? "";
@@ -177,7 +179,7 @@ const bannerOffset =
 		<ConfigCarrier></ConfigCarrier>
 		<slot />
 
-		<AIChatWidget />
+		{!noAIChat && <AIChatWidget />}
 
 		<!-- ⌘K 命令面板：挂在 swup 容器外，切页面后依然可用 -->
 		<CommandPalette client:only="svelte" />

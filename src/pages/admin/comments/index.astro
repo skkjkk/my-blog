@@ -1,0 +1,69 @@
+---
+// 数据台 · 评论：审核、回复、屏蔽词
+import AdminLayout from "@layouts/AdminLayout.astro";
+---
+
+<AdminLayout title="数据台 · 评论">
+	<header class="page-head">
+		<h1>评论</h1>
+		<p>读者留言的审核与回复</p>
+	</header>
+
+	<div class="grid">
+		<section class="card span-12" id="comments-card">
+			<div class="card-head">
+				<h2>
+					待处理
+					<span class="cmt-badge" id="cmt-pending-badge" hidden></span>
+				</h2>
+				<p class="card-note" id="cmt-note">读者留言的审核与回复</p>
+			</div>
+
+			<div class="cmt-kpis" id="cmt-kpis"></div>
+
+			<div class="cmt-bar">
+				<select id="cmt-status" aria-label="按状态筛选">
+					<option value="pending">待审</option>
+					<option value="approved">已通过</option>
+					<option value="spam">垃圾</option>
+					<option value="deleted">已删除</option>
+					<option value="all">全部</option>
+				</select>
+				<select id="cmt-post" aria-label="按文章筛选">
+					<option value="">全部文章</option>
+				</select>
+				<input id="cmt-search" type="search" placeholder="搜昵称或内容" />
+				<div class="seg" id="cmt-mode" role="group" aria-label="审核模式">
+					<button type="button" data-mode="auto" class="is-active">先发后审</button>
+					<button type="button" data-mode="hold">全部待审</button>
+				</div>
+				<button type="button" class="btn" id="cmt-refresh">刷新</button>
+			</div>
+
+			<div class="cmt-batch">
+				<label><input type="checkbox" id="cmt-select-all" /> 全选本页</label>
+				<button type="button" class="btn" id="cmt-batch-approve">批量通过</button>
+				<button type="button" class="btn" id="cmt-batch-delete">批量删除</button>
+				<span class="card-note" id="cmt-selected">已选 0 条</span>
+			</div>
+
+			<div class="cmt-list" id="cmt-list"></div>
+			<button type="button" class="btn" id="cmt-more" hidden>加载更多</button>
+
+			<div class="cmt-keywords-box">
+				<span class="card-note">屏蔽词（命中即进待审）</span>
+				<div class="cmt-bar">
+					<input id="cmt-keyword-input" type="text" placeholder="例如：加微信" maxlength="40" />
+					<button type="button" class="btn" id="cmt-keyword-add">添加</button>
+				</div>
+				<div class="chips" id="cmt-keywords"></div>
+			</div>
+		</section>
+	</div>
+</AdminLayout>
+
+<script>
+	import { initAdminComments } from "../../../scripts/admin-comments";
+
+	initAdminComments();
+</script>

@@ -4,7 +4,7 @@
 
 - 代码：`worker/comments.js`（公开接口）、`worker/comments-admin.js`（后台接口）、`worker/lib/*`（纯逻辑）
 - 前端：`src/components/misc/Comment.astro` + `src/scripts/comments.ts`
-- 后台：`/admin` 页面的「评论」卡片
+- 后台：`/admin/comments/` 页（数据台左侧导航「评论」）
 - 设计：`docs/superpowers/specs/2026-11-01-comments-design.md`
 
 ## 上线三步
@@ -30,7 +30,7 @@
 
 ## 日常怎么用
 
-打开 `/admin` → 底部「评论」卡片：
+打开 `/admin/comments/`（数据台左侧导航点「评论」）：
 
 - **待审**：默认只显示需要你动手的。红点数字就是待审条数。
 - **通过 / 标为垃圾 / 删除 / 恢复 / 置顶**：单条操作，立即生效。

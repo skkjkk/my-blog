@@ -60,10 +60,39 @@ async function resolveAsset(pathname) {
 	return null;
 }
 
+/**
+ * 读仓库根的 .dev.vars（wrangler 的本地密钥文件）。
+ * 以前这里手写 env，漏了 AI_*，结果本地一问 AI 就 502「缺少 AI_API_KEY」。
+ */
+async function loadDevVars() {
+	try {
+		const text = await readFile(".dev.vars", "utf8");
+		const vars = {};
+		for (const line of text.split(/\r?\n/)) {
+			const hit = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+			if (!hit) continue;
+			let value = hit[2].trim();
+			if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+				value = value.slice(1, -1);
+			}
+			vars[hit[1]] = value;
+		}
+		return vars;
+	} catch {
+		return {};
+	}
+}
+
+const devVars = await loadDevVars();
+
 const env = createEnv({
-	ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ?? "dev-pass",
-	IP_SALT: process.env.IP_SALT ?? "dev-ip-salt",
-	COMMENT_COOKIE_SECRET: process.env.COMMENT_COOKIE_SECRET ?? "dev-cookie-secret",
+	ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ?? devVars.ADMIN_PASSWORD ?? "dev-pass",
+	IP_SALT: process.env.IP_SALT ?? devVars.IP_SALT ?? "dev-ip-salt",
+	COMMENT_COOKIE_SECRET: process.env.COMMENT_COOKIE_SECRET ?? devVars.COMMENT_COOKIE_SECRET ?? "dev-cookie-secret",
+	// AI 问答：和线上保持一致，缺了就直说，别再静默 502
+	AI_API_KEY: process.env.AI_API_KEY ?? devVars.AI_API_KEY ?? "",
+	AI_BASE_URL: process.env.AI_BASE_URL ?? devVars.AI_BASE_URL ?? "https://api.hcnsec.cn/v1/chat/completions",
+	AI_MODEL: process.env.AI_MODEL ?? devVars.AI_MODEL ?? "auto",
 	ASSETS: {
 		fetch: async (request) => {
 			const url = new URL(typeof request === "string" ? request : request.url);
@@ -124,4 +153,5 @@ server.listen(port, "127.0.0.1", () => {
 	console.log(`本地全栈服务：http://127.0.0.1:${port}`);
 	console.log(`  后台密码：${env.ADMIN_PASSWORD}`);
 	console.log(`  MCP 入口：http://127.0.0.1:${port}/mcp`);
+	console.log(env.AI_API_KEY ? `  AI 问答：${env.AI_MODEL} @ ${env.AI_BASE_URL}` : "  AI 问答：未配置（.dev.vars 里加 AI_API_KEY 才有回答）");
 });

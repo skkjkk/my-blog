@@ -1,0 +1,51 @@
+---
+// 数据台 · AI：问答成功率、最常被问、最让人困惑的文章、最近的提问
+import AdminLayout from "@layouts/AdminLayout.astro";
+---
+
+<AdminLayout title="数据台 · AI">
+	<header class="page-head">
+		<h1>AI 问答</h1>
+		<p>访客问了什么、答得好不好、哪些文章被反复追问</p>
+	</header>
+
+	<div class="grid">
+		<!-- 半环仪表 -->
+		<section class="card span-4">
+			<div class="card-head">
+				<h2>AI 助手</h2>
+				<p class="card-note">回答成功率</p>
+			</div>
+			<svg id="gauge" class="chart" role="img" aria-label="AI 成功率"></svg>
+			<dl class="facts" id="ai-facts"></dl>
+			<div class="chips" id="models"></div>
+		</section>
+
+		<!-- 最常被问：AI 提问聚类 -->
+		<section class="card span-4">
+			<div class="card-head">
+				<h2>最常被问的问题</h2>
+				<p class="card-note" id="question-note">提问原文去重后按次数排</p>
+			</div>
+			<ol class="rank" id="questions"></ol>
+		</section>
+
+		<!-- 被问最多的文章 -->
+		<section class="card span-4">
+			<div class="card-head">
+				<h2>最让人困惑的文章</h2>
+				<p class="card-note">AI 检索命中最多的文章</p>
+			</div>
+			<ol class="rank" id="ai-paths"></ol>
+		</section>
+
+		<!-- 提问记录 -->
+		<section class="card span-12">
+			<div class="card-head">
+				<h2>最近的提问</h2>
+				<p class="card-note">访客都问了什么</p>
+			</div>
+			<ul class="log" id="log"></ul>
+		</section>
+	</div>
+</AdminLayout>

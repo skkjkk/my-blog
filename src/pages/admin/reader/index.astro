@@ -1,0 +1,68 @@
+---
+// 数据台 · 读者：来的时段、走到哪一步、看什么、搜什么
+import AdminLayout from "@layouts/AdminLayout.astro";
+---
+
+<AdminLayout title="数据台 · 读者">
+	<header class="page-head">
+		<h1>读者</h1>
+		<p>他们什么时候来、看多久、在找什么</p>
+	</header>
+
+	<div class="grid">
+		<!-- 玫瑰图 -->
+		<section class="card span-4 col">
+			<div class="card-head">
+				<h2>读者什么时候来</h2>
+				<p class="card-note" id="rose-note">按小时分布</p>
+			</div>
+			<svg id="rose" class="chart rose" viewBox="0 0 260 260" role="img" aria-label="24 小时访问分布"></svg>
+		</section>
+
+		<!-- 同心环：参与度 -->
+		<section class="card span-4">
+			<div class="card-head">
+				<h2>读者走到哪一步</h2>
+				<p class="card-note">相对阅读次数的比例</p>
+			</div>
+			<svg id="rings" class="chart rings" viewBox="0 0 200 200" role="img" aria-label="读者参与度"></svg>
+			<ul class="ring-legend" id="ring-legend"></ul>
+		</section>
+
+		<!-- 散点图 -->
+		<section class="card span-6">
+			<div class="card-head">
+				<h2>长的文章有人看吗</h2>
+				<p class="card-note">字数 × 阅读次数</p>
+			</div>
+			<svg id="scatter" class="chart" role="img" aria-label="字数与阅读量"></svg>
+		</section>
+
+		<!-- 搜索词 -->
+		<section class="card span-6">
+			<div class="card-head">
+				<h2>读者在搜什么</h2>
+				<p class="card-note" id="search-note"></p>
+			</div>
+			<ol class="rank" id="searches"></ol>
+		</section>
+
+		<!-- 热门页面 -->
+		<section class="card span-6">
+			<div class="card-head">
+				<h2>热门页面</h2>
+				<p class="card-note">按阅读次数</p>
+			</div>
+			<ol class="rank" id="ranking"></ol>
+		</section>
+
+		<!-- 零结果搜索词：直接就是选题清单 -->
+		<section class="card span-6">
+			<div class="card-head">
+				<h2>搜了却没有的</h2>
+				<p class="card-note" id="zero-note">零结果搜索词</p>
+			</div>
+			<ol class="rank" id="zero-search"></ol>
+		</section>
+	</div>
+</AdminLayout>
