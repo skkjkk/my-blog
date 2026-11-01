@@ -106,6 +106,12 @@ const bannerOffset =
 
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
+
+		<!-- PWA：加到手机桌面后能离线刷题 -->
+		<link rel="manifest" href="/manifest.webmanifest" />
+		<meta name="theme-color" content="#5b8def" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-title" content="Wkb" />
 		{favicons.map(favicon => (
 			<link rel="icon"
 				  href={favicon.src.startsWith('/') ? url(favicon.src) : favicon.src}
@@ -175,6 +181,17 @@ const bannerOffset =
 
 		<!-- ⌘K 命令面板：挂在 swup 容器外，切页面后依然可用 -->
 		<CommandPalette client:only="svelte" />
+
+		<!-- Service Worker：离线刷题。访问 ?nosw=1 可临时关掉（调试用） -->
+		<script is:inline>
+			(() => {
+				if (!("serviceWorker" in navigator)) return;
+				if (new URLSearchParams(location.search).has("nosw")) return;
+				window.addEventListener("load", () => {
+					navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+				});
+			})();
+		</script>
 
 		<!-- increase the page height during page transition to prevent the scrolling animation from jumping -->
 		<div id="page-height-extend" class="hidden h-[300vh]"></div>

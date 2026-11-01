@@ -1,0 +1,44 @@
+{
+	"name": "Wkb · 记录 思考 折腾",
+	"short_name": "Wkb",
+	"description": "个人笔记与面试题库：Java、数据库、计算机网络、Agent 与 LLM 应用。",
+	"lang": "zh-CN",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"background_color": "#ffffff",
+	"theme_color": "#5b8def",
+	"icons": [
+		{
+			"src": "/favicon-light-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/favicon-light-128.png",
+			"sizes": "128x128",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/favicon-dark-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	],
+	"shortcuts": [
+		{
+			"name": "刷题",
+			"short_name": "刷题",
+			"url": "/quiz/",
+			"description": "今天该复习的题"
+		},
+		{
+			"name": "题库目录",
+			"short_name": "题库",
+			"url": "/notes/"
+		}
+	]
+}
