@@ -270,6 +270,33 @@ function sameOrigin(request) {
 	return true;
 }
 
+/**
+ * Cloudflare Turnstile 校验。没配 secret 就整体跳过（降级到蜜罐 + 频率限制）；
+ * 配了但校验不过——包括校验服务自己挂了——一律按机器人处理（安全优先）。
+ */
+async function verifyTurnstile(env, token, ip) {
+	const secret = (env?.TURNSTILE_SECRET ?? "").trim();
+	if (!secret) return { enabled: false, ok: true };
+	if (!token) return { enabled: true, ok: false };
+
+	const form = new URLSearchParams();
+	form.set("secret", secret);
+	form.set("response", String(token));
+	if (ip && ip !== "unknown") form.set("remoteip", ip);
+
+	try {
+		const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+			method: "POST",
+			body: form,
+		});
+		const data = await response.json().catch(() => null);
+		return { enabled: true, ok: data?.success === true };
+	} catch (error) {
+		console.warn("Turnstile 校验失败，按机器人处理", error);
+		return { enabled: true, ok: false };
+	}
+}
+
 /** 组装待写入的行（纯派生，不碰数据库） */
 export async function buildCommentRow(input) {
 	const content = normalizeContent(input.content);
@@ -406,7 +433,10 @@ export async function handleCreate(request, env, ctx) {
 
 		// 2) 机器人：给个 200，但落 spam 留样本
 		const bot = detectBot({ honey: body?.honey, elapsed: body?.elapsed });
-		if (bot.bot) {
+		const challenge = bot.bot
+			? { enabled: false, ok: true }
+			: await verifyTurnstile(env, body?.turnstileToken, request.headers.get("cf-connecting-ip") ?? "");
+		if (bot.bot || !challenge.ok) {
 			const row = await buildCommentRow({
 				slug: slug || "/",
 				postId: postId || slug || "/",
@@ -512,3 +542,4 @@ export async function handleCreate(request, env, ctx) {
 		return jsonResponse({ error: "没发出去，稍后再试", retryable: true }, 500);
 	}
 }
+
