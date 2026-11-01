@@ -26,6 +26,7 @@ import {
 	handleAdminSettings,
 } from "./comments-admin.js";
 import { adminCookieValue, isAdmin, safeEqual } from "./lib/admin.js";
+import { describeMcp, handleMcp, mcpJson } from "./mcp.js";
 
 const DEFAULT_BASE_URL = "https://api.hcnsec.cn/v1/chat/completions";
 const DEFAULT_MODEL = "auto";
@@ -530,6 +531,18 @@ async function handleRequest(request, env, ctx) {
 	{
 		const url = new URL(request.url);
 		const path = url.pathname;
+
+		// MCP：给自己的题库开一个标准入口，Cursor / Claude 直接连
+		if (path === "/mcp" || path === "/mcp/") {
+			if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: {
+				"access-control-allow-origin": "*",
+				"access-control-allow-headers": "content-type, mcp-session-id, mcp-protocol-version",
+				"access-control-allow-methods": "POST, GET, OPTIONS",
+			} });
+			if (request.method === "POST") return handleMcp(request, env);
+			if (request.method === "GET") return describeMcp();
+			return mcpJson({ error: "只支持 POST / GET" }, 405);
+		}
 
 		if (path.startsWith("/api/")) {
 			if (request.method === "OPTIONS") {
