@@ -85,3 +85,14 @@ export const expressiveCodeConfig: ExpressiveCodeConfig = {
 	// 代码块配色，必须选深色主题
 	theme: "github-dark",
 };
+
+// ============================================================
+//  ⑤ 评论区
+// ============================================================
+export const commentConfig = {
+	// local = 本站自建（D1）；giscus = 旧的 GitHub Discussions（仅供回滚对照）
+	provider: "local" as "local" | "giscus",
+	// Cloudflare Turnstile 的公开 site key（可选）。留空则不加载人机验证，
+	// 只靠蜜罐字段 + 频率限制；填了还要在 Worker 里配 TURNSTILE_SECRET。
+	turnstileSiteKey: "",
+};

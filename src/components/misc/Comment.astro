@@ -1,15 +1,93 @@
 ---
-// 评论区：用 Giscus（数据存在 GitHub Discussions，不需要服务器和数据库）
-// 真正的加载逻辑在 src/layouts/Layout.astro 的末尾（要兼容 swup 的页面切换）
+// 评论区：本站自建（Cloudflare Worker + D1），不再用 giscus。
+// 这里只输出骨架与表单，真正的加载/提交逻辑在 src/scripts/comments.ts，
+// 由 Layout.astro 挂到 swup 的 page:view 上（切页才会重新初始化）。
+interface Props {
+	slug?: string;
+	postId?: string;
+}
+
+const { slug = Astro.url.pathname, postId = "" } = Astro.props;
 ---
 
-<div class="card-base rounded-2xl px-6 py-6 mb-4 onload-animation">
-	<h2 class="text-lg font-bold mb-2 flex items-center gap-2">
-		<span class="inline-block w-1 h-5 rounded-md bg-[var(--primary)]"></span>
-		评论
-	</h2>
-	<p class="text-sm text-75 mb-5">
-		用 GitHub 账号登录后即可留言，评论会保存到这个仓库的 Discussions 里。
+<section
+	class="comments card-base rounded-2xl px-6 py-6 mb-4 onload-animation"
+	data-slug={slug}
+	data-post-id={postId}
+>
+	<div class="flex items-center justify-between gap-3 mb-1">
+		<h2 class="text-lg font-bold flex items-center gap-2">
+			<span class="inline-block w-1 h-5 rounded-md bg-[var(--primary)]"></span>
+			评论
+		</h2>
+		<span class="text-xs text-black/40 dark:text-white/40" data-comment-count></span>
+	</div>
+	<p class="text-sm text-75 mb-4">
+		留个昵称就能发，不用注册。邮箱选填，只用来认人，不会公开。
 	</p>
-	<div class="giscus"></div>
-</div>
+
+	<!-- 状态条：加载中 / 已发布 / 待审 / 失败 / 冷却倒计时 -->
+	<p
+		class="hidden text-sm rounded-xl px-3 py-2 mb-4 bg-black/5 dark:bg-white/10 text-black/70 dark:text-white/70 data-[tone=error]:bg-red-500/10 data-[tone=error]:text-red-600 dark:data-[tone=error]:text-red-400"
+		data-comment-status
+	></p>
+
+	<form class="mb-6" data-comment-form>
+		<div class="hidden" data-reply-hint>
+			<span class="text-xs text-black/50 dark:text-white/50">正在回复 <b data-reply-name></b></span>
+			<button type="button" class="text-xs text-[var(--primary)] ml-2" data-reply-cancel>取消</button>
+		</div>
+
+		<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+			<input
+				name="name"
+				type="text"
+				maxlength="24"
+				required
+				placeholder="昵称（必填）"
+				class="comment-input rounded-xl"
+			/>
+			<input
+				name="email"
+				type="email"
+				maxlength="254"
+				placeholder="邮箱（选填，不公开）"
+				class="comment-input rounded-xl"
+			/>
+			<input
+				name="website"
+				type="url"
+				maxlength="200"
+				placeholder="网址（选填）"
+				class="comment-input rounded-xl"
+			/>
+		</div>
+
+		<!-- 蜜罐：真人看不见，填了就是机器人 -->
+		<input name="nickname2" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" class="hidden" />
+
+		<textarea
+			name="content"
+			rows="4"
+			maxlength="2000"
+			required
+			placeholder="说点什么…（支持换行，链接会自动识别）"
+			class="comment-input rounded-xl w-full resize-y"
+		></textarea>
+
+		<div class="flex items-center justify-between mt-3 gap-3">
+			<span class="text-xs text-black/40 dark:text-white/40" data-comment-remaining>0 / 2000</span>
+			<div class="flex items-center gap-3">
+				<div data-turnstile-slot></div>
+				<button type="submit" class="btn-card rounded-xl px-5 py-2 text-sm font-bold">发表评论</button>
+			</div>
+		</div>
+	</form>
+
+	<div data-comment-list class="flex flex-col"></div>
+
+	<button type="button" class="hidden btn-card rounded-xl px-4 py-2 text-sm mt-4 self-center" data-comment-more>
+		加载更多
+	</button>
+</section>
+

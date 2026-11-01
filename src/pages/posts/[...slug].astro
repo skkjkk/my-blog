@@ -115,7 +115,7 @@ const jsonLd = {
         </div>
     </div>
 
-    <Comment></Comment>
+    <Comment postId={entry.id}></Comment>
 
     <div class="flex flex-col md:flex-row justify-between mb-4 gap-4 overflow-hidden w-full">
         <a href={entry.data.nextSlug ? getPostUrlBySlug(entry.data.nextSlug) : "#"}

@@ -585,74 +585,14 @@ if (window.swup) {
 </script>
 
 <script>
-// ---------------- Giscus 评论加载器 ----------------
-// 放在 Layout 里而不是评论组件里：首页没有评论区，但脚本必须一直在，
+// ---------------- 评论区加载器 ----------------
+// 和 mermaid / 统计上报一样放在 Layout：首页没有评论区，但脚本必须一直在，
 // 否则从首页点进文章（swup 局部替换）时评论区不会初始化。
-const GISCUS_REPO = "skkjkk/my-blog";
-const GISCUS_REPO_ID = "R_kgDOVc-Qqg";
-const GISCUS_CATEGORY = "Announcements";
-const GISCUS_CATEGORY_ID = "DIC_kwDOVc-Qqs4DJ__9";
+import { initComments, setTurnstileSiteKey } from "../scripts/comments";
+import { commentConfig } from "../config";
 
-function giscusTheme(): string {
-	return document.documentElement.classList.contains("dark") ? "dark" : "light";
-}
-
-function mountGiscus() {
-	const container = document.querySelector<HTMLElement>(".giscus");
-	if (!container || container.dataset.loaded === "true") return;
-	container.dataset.loaded = "true";
-
-	const script = document.createElement("script");
-	script.src = "https://giscus.app/client.js";
-	script.async = true;
-	script.crossOrigin = "anonymous";
-
-	const attrs: Record<string, string> = {
-		"data-repo": GISCUS_REPO,
-		"data-repo-id": GISCUS_REPO_ID,
-		"data-category": GISCUS_CATEGORY,
-		"data-category-id": GISCUS_CATEGORY_ID,
-		"data-mapping": "pathname",
-		"data-strict": "0",
-		"data-reactions-enabled": "1",
-		"data-emit-metadata": "0",
-		"data-input-position": "top",
-		"data-theme": giscusTheme(),
-		"data-lang": "zh-CN",
-		"data-loading": "lazy",
-	};
-	for (const [key, value] of Object.entries(attrs)) {
-		script.setAttribute(key, value);
-	}
-
-	container.appendChild(script);
-}
-
-function syncGiscusTheme() {
-	const frame = document.querySelector<HTMLIFrameElement>("iframe.giscus-frame");
-	if (!frame?.contentWindow) return;
-	frame.contentWindow.postMessage({ giscus: { setConfig: { theme: giscusTheme() } } }, "https://giscus.app");
-}
-
-// 用户切换深色/浅色时同步评论区配色
-new MutationObserver(syncGiscusTheme).observe(document.documentElement, {
-	attributes: true,
-	attributeFilter: ["class"],
-});
-
-function setupGiscus() {
-	mountGiscus();
-	window.swup.hooks.on("page:view", () => {
-		// 等 swup 把新页面内容塞进 DOM 后再挂载
-		window.setTimeout(mountGiscus, 0);
-	});
-}
-
-if (window.swup) {
-	setupGiscus();
-} else {
-	document.addEventListener("swup:enable", setupGiscus);
-}
+setTurnstileSiteKey(commentConfig.turnstileSiteKey);
+initComments();
 </script>
 
 <script>
@@ -839,3 +779,4 @@ if (window.swup) {
 	reportHit();
 }
 </script>
+

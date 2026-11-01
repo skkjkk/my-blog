@@ -185,3 +185,10 @@ pre.mermaid:not([data-rendered]) {
     overflow: hidden;
     opacity: 0.5;
 }
+
+/* ---------------- 评论区 ---------------- */
+.comment-input {
+	@apply w-full bg-black/5 dark:bg-white/10 border border-transparent rounded-lg px-3 py-2 text-sm text-black/80 dark:text-white/80 outline-none transition;
+	@apply placeholder:text-black/35 dark:placeholder:text-white/35;
+	@apply focus:border-[var(--primary)] focus:bg-transparent;
+}
