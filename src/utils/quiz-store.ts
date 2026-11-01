@@ -213,3 +213,39 @@ export function shuffle<T>(list: T[], random: () => number = Math.random): T[] {
 	}
 	return out;
 }
+
+/**
+ * 合并两份状态（本地 + 云端）。规则：
+ *   - 卡片：谁最后刷的听谁的；同一天刷过就取更掌握的那条（streak 大）
+ *   - 打卡：按天取较大值（两边都刷过就取多的）
+ *   - 目标：以本地为准（当前这台设备上你刚调过的值，才是你想看到的）
+ */
+export function mergeStates(local: QuizState, remote: QuizState): QuizState {
+	const cards: Record<string, Card> = { ...remote.cards };
+
+	for (const [slug, mine] of Object.entries(local.cards)) {
+		const theirs = cards[slug];
+		if (!theirs) {
+			cards[slug] = mine;
+			continue;
+		}
+
+		const mineLast = mine.last || "";
+		const theirsLast = theirs.last || "";
+
+		if (mineLast > theirsLast) cards[slug] = mine;
+		else if (mineLast === theirsLast && mine.streak > theirs.streak) cards[slug] = mine;
+	}
+
+	const days: Record<string, number> = { ...remote.days };
+	for (const [day, count] of Object.entries(local.days)) {
+		days[day] = Math.max(days[day] ?? 0, count);
+	}
+
+	return { v: 1, cards, days, goal: local.goal || remote.goal };
+}
+
+/** 两份状态是否等价（避免无意义的上传） */
+export function sameState(a: QuizState, b: QuizState): boolean {
+	return JSON.stringify(a) === JSON.stringify(b);
+}

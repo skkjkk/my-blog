@@ -107,6 +107,9 @@ function ensureSchema(env) {
 			env.DB.prepare(
 				"CREATE TABLE IF NOT EXISTS quiz_grade (slug TEXT NOT NULL, grade INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, updated TEXT NOT NULL, PRIMARY KEY (slug, grade))",
 			),
+			env.DB.prepare(
+				"CREATE TABLE IF NOT EXISTS quiz_state (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL, updated TEXT NOT NULL)",
+			),
 	]).catch((error) => {
 		schemaReady.delete(env.DB); // 失败就别缓存，下次重试
 		console.warn("自动建表失败", error);
@@ -319,6 +322,45 @@ async function handleQuizGrade(request, env, ctx) {
 	);
 
 	return json({ ok: true });
+}
+
+/** 读取云端的刷题进度（只有博主能读：复用后台密码登录后的 cookie） */
+async function handleQuizStateGet(request, env) {
+	if (!(await isAdmin(request, env))) return json({ error: "未登录" }, 401);
+	if (!env?.DB) return json({ error: "数据库还没绑定" }, 500);
+	await ensureSchema(env);
+
+	const row = await env.DB.prepare("SELECT payload, updated FROM quiz_state WHERE id = 1").first();
+	if (!row) return json({ ok: true, payload: null, updated: null });
+
+	return json({ ok: true, payload: row.payload, updated: row.updated });
+}
+
+/** 覆盖写入云端进度（客户端已经合并好再上传，服务端不做业务判断） */
+async function handleQuizStatePut(request, env) {
+	if (!(await isAdmin(request, env))) return json({ error: "未登录" }, 401);
+	if (!env?.DB) return json({ error: "数据库还没绑定" }, 500);
+	await ensureSchema(env);
+
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		return json({ error: "请求格式不对" }, 400);
+	}
+
+	const payload = typeof body?.payload === "string" ? body.payload : JSON.stringify(body?.payload ?? null);
+	if (!payload || payload === "null") return json({ error: "没有内容" }, 400);
+	if (payload.length > 2_000_000) return json({ error: "进度数据太大了" }, 413);
+
+	const updated = new Date().toISOString();
+	await env.DB.prepare(
+		"INSERT INTO quiz_state (id, payload, updated) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated = excluded.updated",
+	)
+		.bind(payload, updated)
+		.run();
+
+	return json({ ok: true, updated });
 }
 
 async function handleLogin(request, env) {
@@ -570,6 +612,12 @@ async function handleRequest(request, env, ctx) {
 			if (path === "/api/quiz/grade") {
 				if (request.method !== "POST") return json({ error: "只支持 POST" }, 405);
 				return handleQuizGrade(request, env, ctx);
+			}
+
+			if (path === "/api/quiz/state") {
+				if (request.method === "GET") return handleQuizStateGet(request, env);
+				if (request.method === "POST") return handleQuizStatePut(request, env);
+				return json({ error: "只支持 GET / POST" }, 405);
 			}
 
 			if (path === "/api/comments") {

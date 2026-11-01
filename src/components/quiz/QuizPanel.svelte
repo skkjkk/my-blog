@@ -12,6 +12,8 @@ import {
 	emptyState,
 	gradeCard,
 	loadState,
+	mergeStates,
+	sameState,
 	serializeState,
 	shuffle,
 	streakDays,
@@ -57,6 +59,9 @@ let error = "";
 let note = "";
 let roundFinished = false;
 let noteTimer: ReturnType<typeof setTimeout> | null = null;
+/** 云端同步：idle 还没试 / local 仅本地 / synced 已同步 / error 失败 */
+let syncState: "idle" | "local" | "synced" | "error" = "idle";
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
 
 const GRADE_LABEL: Record<Grade, { text: string; hint: string }> = {
 	0: { text: "不会", hint: "1" },
@@ -70,6 +75,68 @@ function persist() {
 	} catch {
 		// 隐私模式下写不进去就算了，不影响本轮刷题
 	}
+	schedulePush();
+}
+
+/** 拉云端进度：没登录后台就当「仅本地」，不打扰 */
+async function pullCloud() {
+	try {
+		const response = await fetch(url("/api/quiz/state"), { headers: { accept: "application/json" } });
+		if (response.status === 401) {
+			syncState = "local";
+			return;
+		}
+		if (!response.ok) {
+			syncState = "error";
+			return;
+		}
+
+		const data = await response.json();
+		if (typeof data?.payload === "string") {
+			const remote = loadState(data.payload);
+			const merged = mergeStates(state, remote);
+			if (!sameState(merged, state)) {
+				state = merged;
+				localStorage.setItem(STORAGE_KEY, serializeState(state));
+				refreshQueueAfterSync();
+			}
+		}
+
+		syncState = "synced";
+		// 首次拉完立刻把本地已有的补上去，避免第二台设备看不到
+		void pushCloud();
+	} catch {
+		syncState = "error";
+	}
+}
+
+async function pushCloud() {
+	if (syncState !== "synced" && syncState !== "idle") return;
+	try {
+		const response = await fetch(url("/api/quiz/state"), {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ payload: serializeState(state) }),
+		});
+		if (response.ok) syncState = "synced";
+		else if (response.status === 401) syncState = "local";
+		else syncState = "error";
+	} catch {
+		syncState = "error";
+	}
+}
+
+/** 评分后节流上传，别把每次点击都变成一次请求 */
+function schedulePush() {
+	if (pushTimer) clearTimeout(pushTimer);
+	pushTimer = setTimeout(() => {
+		void pushCloud();
+	}, 2500);
+}
+
+/** 云端数据合并进来后，队列可能过期了 */
+function refreshQueueAfterSync() {
+	if (mode === "today") buildQueue("today");
 }
 
 function flash(message: string) {
@@ -221,6 +288,8 @@ onMount(() => {
 			index = new Map(items.map((item: Item) => [item.slug, item]));
 			category = items[0]?.category ?? "";
 			buildQueue(mode);
+			// 索引就绪后再拉云端，合并完能立刻重建今日队列
+			void pullCloud();
 		})
 		.catch((err) => {
 			error = err instanceof Error ? err.message : "题库加载失败";
@@ -233,6 +302,7 @@ onMount(() => {
 	return () => {
 		window.removeEventListener("keydown", handleKey);
 		if (noteTimer) clearTimeout(noteTimer);
+		if (pushTimer) clearTimeout(pushTimer);
 	};
 });
 
@@ -282,6 +352,15 @@ const TABS: { key: Mode; label: string }[] = [
 			<span>连续 <b class="text-90">{streak}</b> 天</span>
 			<span>累计 <b class="text-90">{total}</b> 题次</span>
 			<span>题库 <b class="text-90">{items.length}</b> 题</span>
+			{#if syncState === "synced"}
+				<span class="text-[var(--primary)]" title="进度已存到云端，换设备也能接着刷">● 已同步</span>
+			{:else if syncState === "local"}
+				<a href={url("/admin/")} class="hover:text-[var(--primary)] transition" title="登录后台后，刷题进度会同步到云端">
+					仅本地 · 登录后台可同步
+				</a>
+			{:else if syncState === "error"}
+				<span class="text-red-500" title="稍后会自动重试，也可以刷新页面">同步失败</span>
+			{/if}
 			<label class="flex items-center gap-1.5 ml-auto">
 				<span>每日目标</span>
 				<select
