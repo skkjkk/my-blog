@@ -6,8 +6,8 @@
 	"vars": {
 		"AI_BASE_URL": "https://api.hcnsec.cn/v1/chat/completions",
 		"AI_MODEL": "auto",
-		// auto = Google 轻量 HTML，失败退 Bing RSS；也可配 brave / tavily / searxng
-		"WEB_SEARCH_PROVIDER": "auto"
+		// firecrawl = Firecrawl Search（需 WEB_SEARCH_API_KEY）；也可配 auto / brave / tavily / searxng
+		"WEB_SEARCH_PROVIDER": "firecrawl"
 	},
 	"d1_databases": [
 		{

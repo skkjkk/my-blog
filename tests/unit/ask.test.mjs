@@ -404,7 +404,7 @@ test("通用问题不预读笔记，也不被迫检索站内", async () => {
 
 test("需要外部资料时会联网搜索，并把网页来源标记为 W 编号", async () => {
 	resetIndexCache();
-	const env = envWithAssets();
+	const env = envWithAssets({ WEB_SEARCH_PROVIDER: "bing" });
 	const originalFetch = globalThis.fetch;
 	let modelCalls = 0;
 

@@ -2,7 +2,7 @@
  * 外部资料工具：联网搜索 + 读取公开网页。
  *
  * 设计约束：
- *   1. 不引第三方 SDK；默认走 Bing RSS，配了 API Key 可切 Brave / Tavily。
+ *   1. 不引第三方 SDK；默认走 Firecrawl Search，失败或未配 Key 时回退 Google / Bing。
  *   2. 只允许公网 http(s)，挡掉 localhost、内网、云元数据地址，避免 SSRF。
  *   3. 读取有超时、字节上限和域名重定向复检；正文截断后再交给模型。
  *   4. 网页内容是「不可信资料」，提示词会明确要求忽略其中的指令。
@@ -276,10 +276,12 @@ function cleanResults(rows, limit) {
 		out.push({
 			title: title.slice(0, 140),
 			url,
-			snippet: String(row?.snippet ?? row?.description ?? row?.content ?? "")
+			snippet: String(
+				row?.snippet ?? row?.description ?? row?.markdown ?? row?.content ?? "",
+			)
 				.replace(/\s+/g, " ")
 				.trim()
-				.slice(0, 320),
+				.slice(0, 1200),
 		});
 		if (out.length >= limit) break;
 	}
@@ -287,7 +289,7 @@ function cleanResults(rows, limit) {
 }
 
 /**
- * 联网搜索。provider 默认 bing，可配 brave / tavily / searxng。
+ * 联网搜索。provider 默认 firecrawl，可配 auto / brave / tavily / searxng / google / bing。
  * 返回 { provider, results:[{title,url,snippet}] }。
  */
 export async function searchWeb(query, options = {}) {
@@ -301,7 +303,7 @@ export async function searchWeb(query, options = {}) {
 	);
 	const fetchImpl = options.fetchImpl ?? fetch;
 	const timeoutMs = Number(env.WEB_SEARCH_TIMEOUT_MS) || WEB_LIMITS.timeoutMs;
-	const provider = String(env.WEB_SEARCH_PROVIDER ?? "auto")
+	const provider = String(env.WEB_SEARCH_PROVIDER ?? "firecrawl")
 		.trim()
 		.toLowerCase();
 	const apiKey = String(env.WEB_SEARCH_API_KEY ?? "").trim();
@@ -315,7 +317,35 @@ export async function searchWeb(query, options = {}) {
 	let response;
 	let rows = [];
 
-	if (provider === "brave") {
+	if (provider === "firecrawl") {
+		if (!apiKey) throw new Error("联网搜索缺少 WEB_SEARCH_API_KEY");
+		response = await fetchPublic(
+			base || "https://api.firecrawl.dev/v2/search",
+			{
+				method: "POST",
+				headers: {
+					...headers,
+					"content-type": "application/json",
+					authorization: `Bearer ${apiKey}`,
+				},
+				body: JSON.stringify({
+					query: q,
+					limit,
+					sources: ["web"],
+				}),
+			},
+			timeoutMs,
+			options.signal,
+			fetchImpl,
+		);
+		if (!response.ok) throw new Error(`Firecrawl 返回 ${response.status}`);
+		const data = await response.json();
+		rows = (data?.data?.web ?? data?.data ?? []).map((row) => ({
+			title: row.title,
+			url: row.url,
+			snippet: row.description ?? row.markdown,
+		}));
+	} else if (provider === "brave") {
 		if (!apiKey) throw new Error("联网搜索缺少 WEB_SEARCH_API_KEY");
 		const url = new URL(
 			base || "https://api.search.brave.com/res/v1/web/search",

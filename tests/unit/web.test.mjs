@@ -87,11 +87,53 @@ test("searchWeb 的 auto 模式先试 Google，没解析到结果再退 Bing", a
 		);
 	};
 
-	const result = await searchWeb("Cloudflare Workers", { fetchImpl, limit: 3 });
+	const result = await searchWeb("Cloudflare Workers", {
+		env: { WEB_SEARCH_PROVIDER: "auto" },
+		fetchImpl,
+		limit: 3,
+	});
 	assert.match(requested, /bing\.com\/search/);
 	assert.equal(result.provider, "auto");
 	assert.equal(result.results.length, 1);
 	assert.equal(result.results[0].url, "https://developers.cloudflare.com/workers/");
+});
+
+test("Firecrawl 搜索解析 v2 的 data.web，并带上 Bearer Key", async () => {
+	let request = null;
+	const fetchImpl = async (url, init) => {
+		request = { url: String(url), init };
+		return new Response(
+			JSON.stringify({
+				success: true,
+				data: {
+					web: [
+						{
+							title: "Workers Changelog",
+							url: "https://developers.cloudflare.com/workers/platform/changelog/",
+							description: "2026-10-30 Workers 更新内容",
+						},
+					],
+				},
+			}),
+			{ status: 200, headers: { "content-type": "application/json" } },
+		);
+	};
+
+	const result = await searchWeb("Cloudflare Workers changelog", {
+		env: {
+			WEB_SEARCH_PROVIDER: "firecrawl",
+			WEB_SEARCH_API_KEY: "fc-test",
+		},
+		fetchImpl,
+		limit: 4,
+	});
+
+	assert.equal(request.url, "https://api.firecrawl.dev/v2/search");
+	assert.equal(request.init.headers.authorization, "Bearer fc-test");
+	assert.equal(JSON.parse(request.init.body).sources[0], "web");
+	assert.equal(result.provider, "firecrawl");
+	assert.equal(result.results.length, 1);
+	assert.match(result.results[0].snippet, /Workers 更新/);
 });
 
 test("readPage 拒绝私网地址", async () => {
