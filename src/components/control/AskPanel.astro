@@ -229,7 +229,36 @@
 		max-width: 100%;
 	}
 
-	/* ---------- 步骤（状态 / 工具 / 思考） ---------- */
+	/* ---------- 状态行 + 时间线 ---------- */
+	/* 时间线里按事件到达顺序排：思考块、工具行、正文段，谁先发生谁在上面 */
+	.ask-status {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		font-size: 0.72rem;
+		line-height: 1.5;
+		opacity: 0.72;
+	}
+	.ask-status[data-done="true"] {
+		opacity: 0.55;
+	}
+	.ask-status-text {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.ask-flow {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	/* 连续的「过程」（思考 / 工具）共用一张灰卡片；正文会把它切断 */
 	.ask-steps {
 		display: flex;
 		flex-direction: column;
@@ -247,17 +276,12 @@
 		opacity: 0.62;
 	}
 
-	.ask-step,
 	.ask-tool {
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
 		gap: 0.35rem 0.45rem;
 		line-height: 1.5;
-	}
-	.ask-step-text {
-		flex: 1;
-		min-width: 0;
 	}
 	.ask-tool-name {
 		flex: 0 0 auto;
@@ -302,7 +326,7 @@
 		animation: ask-pulse 1.1s ease-in-out infinite;
 	}
 	.ask-tool[data-state="done"] .ask-dot,
-	.ask-step[data-done="true"] .ask-dot {
+	.ask-status[data-done="true"] .ask-dot {
 		animation: none;
 		background: oklch(0.68 0.13 155);
 	}
@@ -366,6 +390,10 @@
 	}
 	.ask-answer p:last-child {
 		margin-bottom: 0;
+	}
+	/* 多段正文里前面的「我先查一下」压暗，正式回答保持正常 */
+	.ask-answer[data-partial="true"] {
+		opacity: 0.72;
 	}
 	.ask-answer h3,
 	.ask-answer h4 {

@@ -46,9 +46,15 @@ function formatInline(text: string): string {
 		);
 }
 
-/** 极简 Markdown：标题 / 列表 / 粗体 / 行内代码 / 代码块 / 链接，够聊天用 */
-function renderMarkdown(source: string): string {
-	const escaped = escapeHtml(source);
+/** 极简 Markdown：标题 / 列表 / 粗体 / 行内代码 / 代码块 / 链接，够聊天用
+ *  partial=true 表示还在流式输出，代码块可能没写完：先补个围栏，
+ *  免得半截 ``` 原样铺在正文里、下一帧又变回代码块（视觉上会抖）。 */
+function renderMarkdown(source: string, partial = false): string {
+	const html = escapeHtml(source);
+	const escaped =
+		partial && ((html.match(/```/g)?.length ?? 0) % 2 === 1)
+			? `${html}\n\`\`\``
+			: html;
 
 	const block = (text: string): string => {
 		const lines = text.split("\n");
@@ -213,6 +219,8 @@ export function initAskPanel(): void {
 		}
 
 		if (changed && reset) {
+			// 换了笔记还在生成：停掉，旧上下文的回答留在旧页面没意义
+			controller?.abort();
 			history = [];
 			for (const node of Array.from(
 				log.querySelectorAll(".ask-msg-user, .ask-turn"),
@@ -242,19 +250,26 @@ export function initAskPanel(): void {
 
 	type TurnHandle = {
 		root: HTMLElement;
-		steps: HTMLElement;
 		status: HTMLElement;
 		statusText: HTMLElement;
-		toolBox: HTMLElement;
-		think: HTMLDetailsElement;
-		thinkBody: HTMLElement;
-		answer: HTMLElement;
+		/** 时间线：思考 / 工具 / 正文 按事件到达顺序往里排，顺序就是真实发生顺序 */
+		flow: HTMLElement;
 		sources: HTMLElement;
 		meta: HTMLElement;
-		tools: Map<string, HTMLElement>;
+		/** 当前这段「过程」的灰色卡片；正文段会切断它，之后的过程再开新卡片 */
+		card: HTMLElement | null;
+		/** 当前这段思考（连续 delta 归一段，被别的动作打断就收口） */
+		thinkEl: HTMLDetailsElement | null;
+		thinkBody: HTMLElement | null;
+		thinkText: string;
+		/** 当前这段正文 */
+		answerEl: HTMLElement | null;
 		answerText: string;
-		thinkingText: string;
-		firstTokenShown: boolean;
+		/** 整轮的全部正文（多段拼起来，用于记忆上一轮） */
+		fullText: string;
+		tools: Map<string, HTMLElement>;
+		/** 还在流（决定要不要画光标），和全局 busy 解耦 */
+		streaming: boolean;
 	};
 
 	const createTurn = (): TurnHandle => {
@@ -263,31 +278,13 @@ export function initAskPanel(): void {
 		rootEl.className = "ask-turn";
 		rootEl.dataset.turn = String(turnSeq);
 
-		const steps = document.createElement("div");
-		steps.className = "ask-steps";
-
 		const status = document.createElement("div");
-		status.className = "ask-step";
+		status.className = "ask-status";
 		status.innerHTML =
-			'<span class="ask-dot"></span><span class="ask-step-text">正在连接…</span>';
+			'<span class="ask-dot"></span><span class="ask-status-text">正在连接…</span>';
 
-		const toolBox = document.createElement("div");
-		toolBox.className = "ask-tool-box";
-
-		const think = document.createElement("details");
-		think.className = "ask-think";
-		think.open = true;
-		const summary = document.createElement("summary");
-		summary.textContent = "思考过程";
-		const thinkBody = document.createElement("div");
-		thinkBody.className = "ask-think-body";
-		think.append(summary, thinkBody);
-		think.hidden = true;
-
-		steps.append(status, toolBox, think);
-
-		const answer = document.createElement("div");
-		answer.className = "ask-answer";
+		const flow = document.createElement("div");
+		flow.className = "ask-flow";
 
 		const sources = document.createElement("div");
 		sources.className = "ask-sources";
@@ -296,40 +293,122 @@ export function initAskPanel(): void {
 		const meta = document.createElement("div");
 		meta.className = "ask-meta";
 
-		rootEl.append(steps, answer, sources, meta);
+		rootEl.append(status, flow, sources, meta);
 		log.appendChild(rootEl);
 		scrollToBottom(log);
 
 		return {
 			root: rootEl,
-			steps,
 			status,
-			statusText: status.querySelector(".ask-step-text") as HTMLElement,
-			toolBox,
-			think,
-			thinkBody,
-			answer,
+			statusText: status.querySelector(".ask-status-text") as HTMLElement,
+			flow,
 			sources,
 			meta,
-			tools: new Map(),
+			card: null,
+			thinkEl: null,
+			thinkBody: null,
+			thinkText: "",
+			answerEl: null,
 			answerText: "",
-			thinkingText: "",
-			firstTokenShown: false,
+			fullText: "",
+			tools: new Map(),
+			streaming: true,
 		};
 	};
 
+	/** 过程行（思考 / 工具）落进当前灰卡片；没有就新开一张 */
+	const ensureCard = (handle: TurnHandle): HTMLElement => {
+		if (handle.card) return handle.card;
+		const card = document.createElement("div");
+		card.className = "ask-steps";
+		handle.flow.appendChild(card);
+		handle.card = card;
+		return card;
+	};
+
+	/** 收口当前思考段：写回字数摘要，默认折叠（读者手动点开过就不再自动折叠） */
+	const closeThink = (handle: TurnHandle) => {
+		const details = handle.thinkEl;
+		if (!details) return;
+		const chars = handle.thinkText.length;
+		const summary = details.querySelector("summary");
+		if (summary)
+			summary.textContent = chars > 0 ? `思考过程（${chars} 字）` : "思考过程";
+		if (details.dataset.touched !== "true") details.open = false;
+		handle.thinkEl = null;
+		handle.thinkBody = null;
+		handle.thinkText = "";
+	};
+
+	/** 收口当前正文段：撤掉光标，之后再来正文会另起一段（保持时间线顺序） */
+	const closeAnswer = (handle: TurnHandle) => {
+		if (!handle.answerEl) return;
+		for (const caret of Array.from(
+			handle.answerEl.querySelectorAll(".ask-caret"),
+		))
+			caret.remove();
+		// 模型有时先吐几个换行再调工具：空白段留着会多出一道空行，直接丢掉
+		if (!handle.answerText.trim()) handle.answerEl.remove();
+		handle.answerEl = null;
+		handle.answerText = "";
+	};
+
+	const appendThinking = (handle: TurnHandle, delta: string) => {
+		if (!handle.thinkEl) {
+			closeAnswer(handle);
+			const details = document.createElement("details");
+			details.className = "ask-think";
+			details.open = true;
+			const summary = document.createElement("summary");
+			summary.textContent = "思考过程";
+			const body = document.createElement("div");
+			body.className = "ask-think-body";
+			details.append(summary, body);
+			// 只认「人点了」：toggle 事件对脚本改 open 也会触发，用它判断会永远判成用户操作
+			summary.addEventListener("click", () => {
+				details.dataset.touched = "true";
+			});
+			ensureCard(handle).appendChild(details);
+			handle.thinkEl = details;
+			handle.thinkBody = body;
+			handle.thinkText = "";
+		}
+		handle.thinkText += delta;
+		if (handle.thinkBody) {
+			handle.thinkBody.textContent = handle.thinkText;
+			handle.thinkBody.scrollTop = handle.thinkBody.scrollHeight;
+		}
+	};
+
+	/** 开一段新正文：切断当前灰卡片，保证后面的思考/工具排在正文之后 */
+	const openAnswer = (handle: TurnHandle) => {
+		if (handle.answerEl) return;
+		closeThink(handle);
+		handle.card = null;
+		const el = document.createElement("div");
+		el.className = "ask-answer";
+		handle.flow.appendChild(el);
+		handle.answerEl = el;
+		handle.answerText = "";
+	};
+
 	const updateTool = (handle: TurnHandle, event: Record<string, unknown>) => {
-		const id = String(event.id ?? Math.random());
-		let row = handle.tools.get(id);
+		const id = event.id === undefined || event.id === null ? "" : String(event.id);
+		const running = event.state === "running";
+		let row = id ? handle.tools.get(id) : undefined;
+		// 同一个 id 又被 running 一次 = 新的一次调用，不能覆盖上一行
+		if (row && running && row.dataset.state !== "running") row = undefined;
 
 		if (!row) {
+			closeAnswer(handle);
+			closeThink(handle);
 			row = document.createElement("div");
 			row.className = "ask-tool";
 			row.dataset.state = "running";
 			row.innerHTML =
 				'<span class="ask-dot"></span><span class="ask-tool-name"></span><span class="ask-tool-args"></span><span class="ask-tool-summary"></span>';
-			handle.toolBox.appendChild(row);
-			handle.tools.set(id, row);
+			ensureCard(handle).appendChild(row);
+			if (id) handle.tools.set(id, row);
 		}
 
 		const nameEl = row.querySelector(".ask-tool-name") as HTMLElement;
@@ -337,7 +416,7 @@ export function initAskPanel(): void {
 		const summaryEl = row.querySelector(".ask-tool-summary") as HTMLElement;
 
 		nameEl.textContent = String(event.label ?? event.name ?? "工具");
-		if (event.state === "running") {
+		if (running) {
 			const args = (event.args ?? {}) as Record<string, unknown>;
 			const brief = Object.entries(args)
 				.map(([key, value]) => `${key}=${String(value).slice(0, 24)}`)
@@ -404,23 +483,64 @@ export function initAskPanel(): void {
 		}
 	};
 
+	/** 重画当前这段正文。光标只跟着「还在流的这一段」走，由 handle.streaming 决定 */
 	const flushAnswer = (handle: TurnHandle) => {
+		const el = handle.answerEl;
+		if (!el) return;
 		const pinned = nearBottom(log);
-		handle.answer.innerHTML = renderMarkdown(handle.answerText);
-		if (busy) {
+		el.innerHTML = renderMarkdown(handle.answerText, handle.streaming);
+		if (handle.streaming) {
 			const caret = document.createElement("span");
 			caret.className = "ask-caret";
-			handle.answer.appendChild(caret);
+			caret.setAttribute("aria-hidden", "true");
+			const last = el.lastElementChild;
+			if (last instanceof HTMLParagraphElement) last.appendChild(caret);
+			else el.appendChild(caret);
 		}
 		if (pinned) scrollToBottom(log);
 	};
 
-	const handleEvent = (raw: string, handle: TurnHandle) => {
+	/** 收尾：不再画光标、折叠最后一段思考、灰卡片变淡。中途停止 / 报错 / 正常完成都走这里 */
+	const finishTurn = (handle: TurnHandle) => {
+		handle.streaming = false;
+		closeThink(handle);
+		if (handle.answerEl && !handle.answerText.trim()) {
+			handle.answerEl.remove();
+			handle.answerEl = null;
+			handle.answerText = "";
+		}
+		flushAnswer(handle);
+		for (const caret of Array.from(handle.root.querySelectorAll(".ask-caret")))
+			caret.remove();
+		// 多段正文时，最后一段才是正式回答；前面那些「我先查一下」压低一点
+		const answers = Array.from(
+			handle.flow.querySelectorAll<HTMLElement>(":scope > .ask-answer"),
+		);
+		answers.forEach((el, index) => {
+			if (index < answers.length - 1) el.dataset.partial = "true";
+			else delete el.dataset.partial;
+		});
+		for (const card of Array.from(handle.root.querySelectorAll(".ask-steps")))
+			card.classList.add("is-done");
+	};
+
+	const appendError = (handle: TurnHandle, message: string) => {
+		closeAnswer(handle);
+		closeThink(handle);
+		handle.card = null;
+		const box = document.createElement("div");
+		box.className = "ask-error";
+		box.textContent = message;
+		handle.flow.appendChild(box);
+		if (nearBottom(log)) scrollToBottom(log);
+	};
+
+	const handleEvent = (raw: string, handle: TurnHandle): string => {
 		let event: Record<string, unknown>;
 		try {
 			event = JSON.parse(raw);
 		} catch {
-			return;
+			return "";
 		}
 
 		const type = String(event.type ?? "");
@@ -428,7 +548,7 @@ export function initAskPanel(): void {
 		if (type === "status") {
 			handle.statusText.textContent = String(event.text ?? "处理中…");
 			if (nearBottom(log)) scrollToBottom(log);
-			return;
+			return type;
 		}
 
 		if (type === "note") {
@@ -437,38 +557,30 @@ export function initAskPanel(): void {
 				contextLabel.textContent = `正在看：《${title}》`;
 				contextLabel.title = title;
 			}
-			return;
+			return type;
 		}
 
 		if (type === "tool") {
 			updateTool(handle, event);
-			return;
+			return type;
 		}
 
 		if (type === "thinking") {
-			handle.thinkingText += String(event.delta ?? "");
-			handle.think.hidden = false;
-			handle.thinkBody.textContent = handle.thinkingText;
-			handle.thinkBody.scrollTop = handle.thinkBody.scrollHeight;
-			if (nearBottom(log)) scrollToBottom(log);
-			return;
+			const delta = String(event.delta ?? "");
+			if (delta) {
+				appendThinking(handle, delta);
+				if (nearBottom(log)) scrollToBottom(log);
+			}
+			return type;
 		}
 
 		if (type === "text") {
-			handle.answerText += String(event.delta ?? "");
-			if (!handle.firstTokenShown) {
-				handle.firstTokenShown = true;
-				handle.status.dataset.done = "true";
-				handle.statusText.textContent = "已想好，开始回答";
-				handle.think.open = false;
-				if (handle.thinkingText) {
-					const summary = handle.think.querySelector("summary");
-					if (summary)
-						summary.textContent = `思考过程（${handle.thinkingText.length} 字，点开看）`;
-				}
-			}
-			flushAnswer(handle);
-			return;
+			const delta = String(event.delta ?? "");
+			if (!delta) return type;
+			openAnswer(handle);
+			handle.answerText += delta;
+			handle.fullText += delta;
+			return type;
 		}
 
 		if (type === "sources") {
@@ -483,7 +595,7 @@ export function initAskPanel(): void {
 				}[],
 				event.unmarked === true,
 			);
-			return;
+			return type;
 		}
 
 		if (type === "done") {
@@ -507,25 +619,24 @@ export function initAskPanel(): void {
 			]
 				.filter(Boolean)
 				.join(" · ");
-			if (handle.answerText.trim()) {
+			if (handle.fullText.trim()) {
 				history.push({
 					role: "assistant",
-					content: handle.answerText.trim().slice(0, 1200),
+					content: handle.fullText.trim().slice(0, 1200),
 				});
 				while (history.length > MAX_HISTORY * 2) history.shift();
 			}
-			return;
+			return type;
 		}
 
 		if (type === "error") {
 			handle.status.dataset.done = "true";
 			handle.statusText.textContent = "出错了";
-			const box = document.createElement("div");
-			box.className = "ask-error";
-			box.textContent = String(event.message ?? "出了问题，稍后再试");
-			handle.answer.appendChild(box);
-			if (nearBottom(log)) scrollToBottom(log);
+			appendError(handle, String(event.message ?? "出了问题，稍后再试"));
+			return type;
 		}
+
+		return type;
 	};
 
 	async function ask(question: string) {
@@ -538,7 +649,8 @@ export function initAskPanel(): void {
 		history.push({ role: "user", content: question.slice(0, 800) });
 
 		const handle = createTurn();
-		controller = new AbortController();
+		const ctrl = new AbortController();
+		controller = ctrl;
 		let raf = 0;
 
 		const scheduleFlush = () => {
@@ -559,7 +671,7 @@ export function initAskPanel(): void {
 					history: history.slice(0, -1),
 					...visitorIds(),
 				}),
-				signal: controller.signal,
+				signal: ctrl.signal,
 			});
 
 			if (!response.ok) {
@@ -578,7 +690,9 @@ export function initAskPanel(): void {
 				const { done, value } = await reader.read();
 				if (done) break;
 
+				// 有的反代会把 \n 改写成 \r\n，统一一下再按空行切帧
 				buffer += decoder.decode(value, { stream: true });
+				buffer = buffer.replace(/\r\n/g, "\n");
 				const blocks = buffer.split("\n\n");
 				buffer = blocks.pop() ?? "";
 
@@ -590,10 +704,9 @@ export function initAskPanel(): void {
 					const payload = line.slice(5).trim();
 					if (!payload) continue;
 
-					const type = payload.slice(0, 40);
-					handleEvent(payload, handle);
-					if (type.includes('"text"') || type.includes('"thinking"'))
-						scheduleFlush();
+					const type = handleEvent(payload, handle);
+					// 正文按帧合并重画；思考是直接写 DOM，不用重画
+					if (type === "text") scheduleFlush();
 				}
 			}
 
@@ -610,16 +723,16 @@ export function initAskPanel(): void {
 			} else {
 				handle.status.dataset.done = "true";
 				handle.statusText.textContent = "出错了";
-				const box = document.createElement("div");
-				box.className = "ask-error";
-				box.textContent = (error as Error)?.message ?? "网络不太行，稍后再试";
-				handle.answer.appendChild(box);
+				appendError(handle, (error as Error)?.message ?? "网络不太行，稍后再试");
 			}
 		} finally {
-			handle.steps.classList.add("is-done");
-			controller = null;
-			if (busy) busy = false;
-			setBusy(false);
+			// 收尾统一走 finishTurn：撤掉光标、折叠最后一段思考、灰卡片变淡
+			finishTurn(handle);
+			if (controller === ctrl) controller = null;
+			if (controller === null) {
+				busy = false;
+				setBusy(false);
+			}
 			resetHint();
 			if (nearBottom(log)) scrollToBottom(log);
 		}
@@ -640,12 +753,13 @@ export function initAskPanel(): void {
 	scrim?.addEventListener("click", () => setOpen(false));
 
 	$("#ask-new")?.addEventListener("click", () => {
+		// 正在生成时清空对话：先把请求掐掉，别在背后白烧 token
+		controller?.abort();
 		history = [];
 		for (const node of Array.from(
 			log.querySelectorAll(".ask-msg-user, .ask-turn"),
 		))
 			node.remove();
-		history.length = 0;
 		resetHint();
 		input.focus();
 	});
